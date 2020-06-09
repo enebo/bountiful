@@ -30,6 +30,7 @@ pub struct Map {
     map: Vec<Tile>
 }
 
+
 // FIXME: I had wanted loc to be reference but life time woes once I hit calling astar in shortest path.
 struct CoordIterator<'a> {
     map: &'a Map,
@@ -199,15 +200,9 @@ fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
     Some(map)
 }
 
-fn main() {
-    let map = Map::new(80, 24, '.', 1);
-
-    println!("Map {}", map);
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{Map, Point, Tile, generate_ascii_map};
+    use crate::resources::map::{Map, Point, Tile, generate_ascii_map};
 
     #[test]
     fn test_is_valid_loc() {
@@ -296,10 +291,10 @@ mod tests {
 
 
         let mut map = generate_ascii_map(map_string).unwrap();
-/*        assert_eq!(map.width, 14);
-        assert_eq!(map.height, 4);
-        assert_eq!(map.at(map.at_xy(0, 0).unwrap()), TileType::Wall);
-        assert_eq!(map.at(map.at_xy(1, 1).unwrap()), TileType::Floor);*/
+        /*        assert_eq!(map.width, 14);
+                assert_eq!(map.height, 4);
+                assert_eq!(map.at(map.at_xy(0, 0).unwrap()), TileType::Wall);
+                assert_eq!(map.at(map.at_xy(1, 1).unwrap()), TileType::Floor);*/
         println!("{}", map);
 
         let start = Point::new(1, 1);

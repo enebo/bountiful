@@ -1,0 +1,17 @@
+(
+    axes: {},
+    actions: {
+        "nw": [[Key(Y)]],
+        "n": [[Key(K)]],
+        "ne": [[Key(U)]],
+        "w": [[Key(H)]],
+        "e": [[Key(L)]],
+        "sw": [[Key(B)]],
+        "s": [[Key(J)]],
+        "se": [[Key(N)]],
+        "get": [[Key(Comma)]],
+        "drop": [[Key(D)]],
+        "inventory": [[Key(I)]],
+        "use": [[Key(A)]],
+    },
+)

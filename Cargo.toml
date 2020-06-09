@@ -7,7 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra = "0.21.1"
+amethyst = "0.15.0"
+amethyst-imgui = "0.7.0"
+nalgebra = "0.19.0"
 pathfinding = "2.0.4"
 rand = "0.7.3"
 
@@ -17,3 +19,9 @@ criterion = "0.3.1"
 [[bench]]
 name = "shortest_path"
 harness = false
+
+[features]
+default = ["vulkan"]
+empty = ["amethyst/empty"]
+metal = ["amethyst/metal"]
+vulkan = ["amethyst/vulkan"]
