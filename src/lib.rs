@@ -34,6 +34,7 @@ pub struct Map {
 struct CoordIterator<'a> {
     map: &'a Map,
     loc: Point,
+    // Current index in POINTS
     index: usize,
 }
 
@@ -46,18 +47,20 @@ impl<'a> CoordIterator<'a> {
         }
     }
 
-    fn math_is_hard(base: usize, delta: i32) -> Option<usize> {
-        let negative = delta < 0;
+    // This is only for apply POINTS offset values.  We do not care about
+    // overflowing because no map will have a dimension of biggest usize.
+    fn math_is_hard(base: usize, delta: isize) -> Option<usize> {
+        let result = base as isize + delta;
 
-        if negative {
-            base.checked_sub(delta.abs() as usize)
+        if result.is_negative() {
+            None
         } else {
-            base.checked_add(delta as usize)
+            Some(result as usize)
         }
     }
 }
 
-const POINTS: [(i32, i32); 8] = [
+const POINTS: [(isize, isize); 8] = [
     (-1, -1),  // upper left
     (0, -1),   // up
     (1, -1),   // upper right
@@ -92,11 +95,11 @@ impl<'a> Iterator for CoordIterator<'a> {
 }
 
 impl Map {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize, default_char: char, default_weight: usize) -> Self {
         Self {
             width,
             height,
-            map: vec![Tile::new('.', 1); width * height],
+            map: vec![Tile::new(default_char, default_weight); width * height],
         }
     }
 
@@ -111,13 +114,11 @@ impl Map {
     }
 
     fn is_valid_loc(&self, loc: &Point) -> Option<usize> {
-        if loc.x >= self.width || loc.y >= self.height { return None; }
-
-        let index = self.at_xy_raw(loc);
-
-        if index > self.map.len() { return None; }
-
-        Some(index)
+        if loc.x >= self.width || loc.y >= self.height {
+            None
+        } else {
+            Some(self.at_xy_raw(loc))
+        }
     }
 
     pub fn set_at(&mut self, loc: &Point, tile: Tile) -> Result<(), MyError>{
@@ -127,7 +128,6 @@ impl Map {
         } else {
             Err(MyError{})
         }
-
     }
 
     fn at_xy_raw(&self, loc: &Point) -> usize {
@@ -184,7 +184,7 @@ fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
     }
 
     println!("Making map of size: {}x{}", width, height);
-    let mut map = Map::new(width, height);
+    let mut map = Map::new(width, height, '.', 1);
 
     for (y, row) in rows.iter().enumerate() {
         for (x, tile) in row.chars().enumerate() {
@@ -200,7 +200,7 @@ fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
 }
 
 fn main() {
-    let map = Map::new(80, 24);
+    let map = Map::new(80, 24, '.', 1);
 
     println!("Map {}", map);
 }
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn test_is_valid_loc() {
         let width = 5;
-        let map = Map::new(width, 10);
+        let map = Map::new(width, 10, '.', 1);
 
         assert_eq!(map.is_valid_loc(&Point::new(0, 0)), Some(0));
         assert_eq!(map.is_valid_loc(&Point::new(1, 0)), Some(1));
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn test_coords() {
         let width = 5;
-        let map = Map::new(width, 10);
+        let map = Map::new(width, 10, '.', 1);
 
         assert_eq!(map.coords(0), (0, 0));
         assert_eq!(map.coords(1), (1, 0));
@@ -234,18 +234,18 @@ mod tests {
     #[test]
     fn test_at_and_set_at() {
         let width = 5;
-        let mut map = Map::new(width, 10);
+        let mut map = Map::new(width, 10, '.', 1);
 
         let point = &Point::new(0, 0);
-        assert_eq!(map.at(point).unwrap().id, ' ');
-        map.set_at(point, Tile::new('.', 1)).unwrap();
         assert_eq!(map.at(point).unwrap().id, '.');
+        map.set_at(point, Tile::new('=', 1)).unwrap();
+        assert_eq!(map.at(point).unwrap().id, '=');
     }
 
     #[test]
     fn test_adjacent_ats() {
         let width = 5;
-        let map = Map::new(width, 10);
+        let map = Map::new(width, 10, '.', 1);
 
         //  +--
         //  |xo
