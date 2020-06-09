@@ -1,6 +1,13 @@
 use std::fmt::{Display, Formatter};
 use core::fmt;
-use pathfinding::prelude::{absdiff, astar};
+use nalgebra::Point2;
+use pathfinding::prelude::astar;
+use pathfinding::utils::absdiff;
+
+pub type Point = Point2<usize>;
+
+#[derive(Debug)]
+pub struct MyError {}
 
 #[derive(Clone)]
 pub struct Tile {
@@ -9,7 +16,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    fn new(id: char, weight: usize) -> Tile {
+    pub fn new(id: char, weight: usize) -> Tile {
         Tile {
             id,
             weight,
@@ -23,21 +30,18 @@ pub struct Map {
     map: Vec<Tile>
 }
 
+// FIXME: I had wanted loc to be reference but life time woes once I hit calling astar in shortest path.
 struct CoordIterator<'a> {
     map: &'a Map,
-    x: usize,
-    y: usize,
+    loc: Point,
     index: usize,
 }
 
 impl<'a> CoordIterator<'a> {
-    fn new(map: &'a Map, loc: usize) -> Self {
-        let (x, y) = map.coords(loc);
-
+    fn new(map: &'a Map, loc: Point) -> Self {
         Self {
             map,
-            x,
-            y,
+            loc,
             index: 0,
         }
     }
@@ -65,7 +69,7 @@ const POINTS: [(i32, i32); 8] = [
 ];
 
 impl<'a> Iterator for CoordIterator<'a> {
-    type Item = (usize, usize);
+    type Item = (Point, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.index < POINTS.len() {
@@ -73,10 +77,10 @@ impl<'a> Iterator for CoordIterator<'a> {
             self.index += 1;
 
             // checked add to guarantee no negative values and at_xy still checks upper bounds of map.
-            if let Some(nx) = Self::math_is_hard(self.x, dx) {
-                if let Some(ny) = Self::math_is_hard(self.y, dy) {
-                    if let Some(new_loc) = self.map.at_xy(nx, ny) {
-                        let tile = self.map.at(new_loc);
+            if let Some(nx) = Self::math_is_hard(self.loc.x, dx) {
+                if let Some(ny) = Self::math_is_hard(self.loc.y, dy) {
+                    let new_loc = Point::new(nx, ny);
+                    if let Some(tile) = self.map.at(&new_loc) {
                         return Some((new_loc, tile.weight))
                     }
                 }
@@ -88,40 +92,46 @@ impl<'a> Iterator for CoordIterator<'a> {
 }
 
 impl Map {
-    fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         Self {
             width,
             height,
-            map: vec![Tile::new(' ', 1); width * height],
+            map: vec![Tile::new('.', 1); width * height],
         }
     }
 
     /// Note: Assumes all index accesses will get an index from a method which will prepare
     /// a safe index.
-    fn at(&self, index: usize) -> &Tile {
-        &self.map[index]
-    }
-
-    fn set_at(&mut self, index: usize, tile: Tile) {
-        self.map[index] = tile;
-    }
-
-    fn at_xy(&self, x: usize, y: usize) -> Option<usize> {
-        if x >= self.width || y >= self.height {
-            return None;
+    fn at(&self, loc: &Point) -> Option<&Tile> {
+        if let Some(index) = self.is_valid_loc(loc) {
+            return Some(&self.map[index]);
         }
 
-        let index = self.at_xy_raw(x, y);
+        None
+    }
 
-        if index > self.map.len() {
-            return None;
-        }
+    fn is_valid_loc(&self, loc: &Point) -> Option<usize> {
+        if loc.x >= self.width || loc.y >= self.height { return None; }
+
+        let index = self.at_xy_raw(loc);
+
+        if index > self.map.len() { return None; }
 
         Some(index)
     }
 
-    fn at_xy_raw(&self, x: usize, y: usize) -> usize {
-        y * self.width + x
+    pub fn set_at(&mut self, loc: &Point, tile: Tile) -> Result<(), MyError>{
+        if let Some(index) = self.is_valid_loc(loc) {
+            self.map[index] = tile;
+            Ok(())
+        } else {
+            Err(MyError{})
+        }
+
+    }
+
+    fn at_xy_raw(&self, loc: &Point) -> usize {
+        loc.y * self.width + loc.x
     }
 
     /// Note: Assumes all index accesses will get an index from a method which will prepare
@@ -130,21 +140,20 @@ impl Map {
         (index % self.width, index / self.width)
     }
 
-    fn adjacent_ats(&self, index: usize) -> impl Iterator<Item=(usize, usize)> + '_ {
-        CoordIterator::new(&self, index)
+    // Assumes valid point
+    fn adjacent_ats<'a>(&'a self, loc: Point) -> impl Iterator<Item=(Point, usize)> + 'a {
+        CoordIterator::new(self, loc)
     }
 
-    fn distance(&self, index1: usize, index2: usize) -> usize {
-        // FIXME: decompose to simple math
-        let (x1, y1) = self.coords(index1);
-        let (x2, y2) = self.coords(index2);
-        let x = absdiff(x1, x2);
-        let y = absdiff(y1, y2);
-        x + y
+    fn distance(p1: &Point, p2: &Point) -> usize {
+        absdiff(p1.x, p2.x) + absdiff(p1.y, p2.y)
     }
 
-    fn shortest_path(&self, start: usize, end: usize) -> Option<(Vec<usize>, usize)>{
-        astar(&start, |i| self.adjacent_ats(*i).filter(|(i, _)| self.at(*i).id == '.'), |i| self.distance(*i, end), |i| i == &end)
+    pub fn shortest_path(&self, start: &Point, end: &Point) -> Option<(Vec<Point>, usize)> {
+        astar(&start,
+              |i| self.adjacent_ats(i.clone()).filter(|(i, _)| self.at(i).unwrap().id == '.'),
+              |i| Self::distance(i, end),
+              |i| i == end)
     }
 }
 
@@ -179,9 +188,11 @@ fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
 
     for (y, row) in rows.iter().enumerate() {
         for (x, tile) in row.chars().enumerate() {
+            // FIXME: All tiles will be immutable so share them all.
             let tile = Tile::new(tile, 1);
+            let point = Point::new(x, y);
 
-            map.set_at(map.at_xy_raw(x, y), tile);
+            map.set_at(&point, tile).unwrap();
         }
     }
 
@@ -196,18 +207,18 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Map, Tile, generate_ascii_map};
+    use crate::{Map, Point, Tile, generate_ascii_map};
 
     #[test]
-    fn test_at_xy() {
+    fn test_is_valid_loc() {
         let width = 5;
         let map = Map::new(width, 10);
 
-        assert_eq!(map.at_xy(0, 0), Some(0));
-        assert_eq!(map.at_xy(1, 0), Some(1));
-        assert_eq!(map.at_xy(0, 1), Some(5));
-        assert_eq!(map.at_xy(6, 0), None);
-        assert_eq!(map.at_xy(0, 10), None);
+        assert_eq!(map.is_valid_loc(&Point::new(0, 0)), Some(0));
+        assert_eq!(map.is_valid_loc(&Point::new(1, 0)), Some(1));
+        assert_eq!(map.is_valid_loc(&Point::new(0, 1)), Some(5));
+        assert_eq!(map.is_valid_loc(&Point::new(6, 0)), None);
+        assert_eq!(map.is_valid_loc(&Point::new(0, 10)), None);
     }
 
     #[test]
@@ -225,9 +236,10 @@ mod tests {
         let width = 5;
         let mut map = Map::new(width, 10);
 
-        assert_eq!(map.at(map.at_xy(0, 0).unwrap()).id, ' ');
-        map.set_at(map.at_xy(0, 0).unwrap(), Tile::new('.', 1));
-        assert_eq!(map.at(map.at_xy(0, 0).unwrap()).id, '.');
+        let point = &Point::new(0, 0);
+        assert_eq!(map.at(point).unwrap().id, ' ');
+        map.set_at(point, Tile::new('.', 1)).unwrap();
+        assert_eq!(map.at(point).unwrap().id, '.');
     }
 
     #[test]
@@ -238,37 +250,37 @@ mod tests {
         //  +--
         //  |xo
         //  |oo
-        let ats = map.adjacent_ats(map.at_xy(0, 0).unwrap());
-        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| map.coords(i)).collect();
+        let ats = map.adjacent_ats(Point::new(0, 0));
+        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| (i.x, i.y)).collect();
         assert_eq!(ats, vec![(1, 0), (0, 1), (1, 1)]);
 
         //  +---
         //  |oxo
         //  |ooo
-        let ats = map.adjacent_ats(map.at_xy(1, 0).unwrap());
-        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| map.coords(i)).collect();
+        let ats = map.adjacent_ats(Point::new(1, 0));
+        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| (i.x, i.y)).collect();
         assert_eq!(ats, vec![(0, 0), (2, 0), (0, 1), (1, 1), (2, 1)]);
 
         //  +---
         //  |ooo
         //  |oxo
         //  |ooo
-        let ats = map.adjacent_ats(map.at_xy(1, 1).unwrap());
-        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| map.coords(i)).collect();
+        let ats = map.adjacent_ats(Point::new(1, 1));
+        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| (i.x, i.y)).collect();
         assert_eq!(ats, vec![(0, 0), (1, 0), (2, 0), (0, 1), (2, 1), (0, 2), (1, 2), (2, 2)]);
 
         // --+
         // ox|
         // oo|
-        let ats = map.adjacent_ats(map.at_xy(4, 0).unwrap());
-        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| map.coords(i)).collect();
+        let ats = map.adjacent_ats(Point::new(4, 0));
+        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| (i.x, i.y)).collect();
         assert_eq!(ats, vec![(3, 0), (3, 1), (4, 1)]);
 
         // oo|
         // ox|
         // --+
-        let ats = map.adjacent_ats(map.at_xy(4, 9).unwrap());
-        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| map.coords(i)).collect();
+        let ats = map.adjacent_ats(Point::new(4, 9));
+        let ats: Vec<(usize, usize)> = ats.map(|(i, _)| (i.x, i.y)).collect();
         assert_eq!(ats, vec![(3, 8), (4, 8), (3, 9)]);
     }
 
@@ -290,18 +302,20 @@ mod tests {
         assert_eq!(map.at(map.at_xy(1, 1).unwrap()), TileType::Floor);*/
         println!("{}", map);
 
-        let path = map.shortest_path(map.at_xy_raw(1,1), map.at_xy_raw(12, 1));
+        let start = Point::new(1, 1);
+        let end = Point::new(12, 1);
+        let path = map.shortest_path(&start, &end);
         if let Some(path) = path {
             let (path, distance) = path;
             println!("distance {}", distance);
-            let route: Vec<_> = path.iter().map(|i| map.coords(*i)).collect();
+            let route: Vec<_> = path.iter().collect();
             println!("Path {:?}", route);
-            for i in path {
-                map.set_at(i, Tile::new('x', 1));
+            for i in &path {
+                let tile = Tile::new('x', 1);
+                map.set_at(i, tile).unwrap();
             }
             println!("{}", map);
         }
 
     }
 }
-
