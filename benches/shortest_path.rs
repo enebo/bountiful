@@ -1,12 +1,12 @@
+use bountiful::resources::{Point, Map, Tile};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use model1::{Point, Map, Tile};
 
 pub const MAP_WIDTH: usize = 80;
 pub const MAP_HEIGHT: usize = 20;
 
 fn make_map(start: Point, end: Point) -> Map {
-    let mut map = Map::new(MAP_WIDTH, MAP_HEIGHT);
+    let mut map = Map::new(MAP_WIDTH, MAP_HEIGHT, '.', 1);
     let mut rng = rand::thread_rng();
 
     // Add random walls

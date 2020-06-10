@@ -559,6 +559,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
+name = "bountiful"
+version = "0.1.0"
+dependencies = [
+ "amethyst",
+ "amethyst-imgui",
+ "criterion",
+ "nalgebra",
+ "pathfinding",
+ "rand 0.7.3",
+]
+
+[[package]]
 name = "bstr"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2014,18 +2026,6 @@ dependencies = [
  "mint",
  "num",
  "serde",
-]
-
-[[package]]
-name = "model1"
-version = "0.1.0"
-dependencies = [
- "amethyst",
- "amethyst-imgui",
- "criterion",
- "nalgebra",
- "pathfinding",
- "rand 0.7.3",
 ]
 
 [[package]]

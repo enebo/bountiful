@@ -12,11 +12,7 @@ use amethyst::{
 
 
 use amethyst_imgui::RenderImgui;
-use bountiful::Bountiful;
-use resources::Map;
-
-mod bountiful;
-mod resources;
+use bountiful::bountiful::Bountiful;
 
 fn main() -> amethyst::Result<()> {
     amethyst::start_logger(Default::default());

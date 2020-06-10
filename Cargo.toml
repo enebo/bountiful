@@ -1,5 +1,5 @@
 [package]
-name = "model1"
+name = "bountiful"
 version = "0.1.0"
 authors = ["Thomas E. Enebo <tom.enebo@gmail.com>"]
 edition = "2018"

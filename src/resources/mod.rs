@@ -1,3 +1,3 @@
-mod map;
+pub(crate) mod map;
 
-pub use self::map::Map;
+pub use self::map::{Map, Point, Tile};
