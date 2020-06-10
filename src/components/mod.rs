@@ -1,2 +1,4 @@
-mod position;
-mod player;
+pub mod position;
+pub mod player;
+
+pub use self::player::Player;
