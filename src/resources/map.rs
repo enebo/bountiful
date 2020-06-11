@@ -9,9 +9,9 @@ pub type Point = Point2<usize>;
 #[derive(Debug)]
 pub struct MyError {}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Tile {
-    id: char,
+    pub id: char,
     weight: usize,
 }
 
@@ -28,6 +28,37 @@ pub struct Map {
     width: usize,
     height: usize,
     map: Vec<Tile>
+}
+
+struct MapIterator<'a> {
+    map: &'a Map,
+    index: usize,
+}
+
+impl<'a> MapIterator<'a> {
+    fn new(map: &'a Map) -> Self {
+        Self {
+            map,
+            index: 0,
+        }
+    }
+}
+
+impl<'a> Iterator for MapIterator<'a> {
+    type Item = (Point, Tile);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index >= self.map.map.len() {
+            return None;
+        }
+
+        let point = self.map.point_for(self.index);
+        let tile = self.map.at(&point).unwrap();
+        self.index += 1;
+
+        // FIXME: It bugs me that I am having to clone immutable data here.
+        Some((point, tile.clone()))
+    }
 }
 
 
@@ -137,8 +168,8 @@ impl Map {
 
     /// Note: Assumes all index accesses will get an index from a method which will prepare
     /// a safe index.
-    fn coords(&self, index: usize) -> (usize, usize) {
-        (index % self.width, index / self.width)
+    fn point_for(&self, index: usize) -> Point {
+        Point::new(index % self.width, index / self.width)
     }
 
     // Assumes valid point
@@ -148,6 +179,10 @@ impl Map {
 
     fn distance(p1: &Point, p2: &Point) -> usize {
         absdiff(p1.x, p2.x) + absdiff(p1.y, p2.y)
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=(Point, Tile)> + 'a {
+        MapIterator::new(self)
     }
 
     pub fn shortest_path(&self, start: &Point, end: &Point) -> Option<(Vec<Point>, usize)> {
@@ -169,7 +204,7 @@ impl Display for Map {
     }
 }
 
-fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
+pub fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
     let rows: Vec<&str> = ascii_map.split_terminator('\n').collect();
     let height = rows.len();
 
@@ -217,13 +252,13 @@ mod tests {
     }
 
     #[test]
-    fn test_coords() {
+    fn test_point_for() {
         let width = 5;
         let map = Map::new(width, 10, '.', 1);
 
-        assert_eq!(map.coords(0), (0, 0));
-        assert_eq!(map.coords(1), (1, 0));
-        assert_eq!(map.coords(5), (0, 1));
+        assert_eq!(map.point_for(0), Point::new(0, 0));
+        assert_eq!(map.point_for(1), Point::new(1, 0));
+        assert_eq!(map.point_for(5), Point::new(0, 1));
     }
 
     #[test]
@@ -311,6 +346,17 @@ mod tests {
             }
             println!("{}", map);
         }
+    }
 
+    #[test]
+    fn test_map_iterator() {
+        let map_string = "123\n\
+                                #.#\n\
+                                ###";
+        let map = generate_ascii_map(map_string).unwrap();
+
+        let string: String = map.iter().map(|(_, tile)| tile.id).collect();
+
+        assert_eq!(string, "123#.####");
     }
 }

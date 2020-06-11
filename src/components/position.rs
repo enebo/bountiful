@@ -3,13 +3,13 @@ use amethyst::ecs::{Component, DenseVecStorage};
 
 #[derive(Component, Debug)]
 #[storage(DenseVecStorage)]
-struct Position {
-    map_id: String,
-    loc: Point,
+pub struct Position {
+    pub map_id: String,
+    pub loc: Point,
 }
 
 impl Position {
-    fn new(map_id: String, loc: Point) -> Self {
+    pub fn new(map_id: String, loc: Point) -> Self {
         Self {
             map_id,
             loc

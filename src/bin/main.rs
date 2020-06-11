@@ -13,7 +13,7 @@ use amethyst::{
 
 use amethyst_imgui::RenderImgui;
 use bountiful::bountiful::Bountiful;
-use bountiful::systems::InputSystem;
+use bountiful::systems::{InputSystem, MoveSystem, CollisionSystem};
 
 fn main() -> amethyst::Result<()> {
     amethyst::start_logger(Default::default());
@@ -39,7 +39,9 @@ fn main() -> amethyst::Result<()> {
                 .with_plugin(RenderFlat2D::default())
         )?
         .with_bundle(TransformBundle::new())?
-        .with(InputSystem, "player_input", &["imgui_input_system"]);
+        .with(InputSystem, "player_input", &["imgui_input_system"])
+        .with(CollisionSystem, "collisions", &["player_input"])
+        .with(MoveSystem, "moves", &["collisions"]);
 
     let mut game = Application::new(assets_dir, Bountiful, game_data)?;
     game.run();
