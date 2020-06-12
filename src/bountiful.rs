@@ -94,8 +94,9 @@ fn generate_map() -> Map {
 
 fn initialize_map(world: &mut World, map: &Map) {
     let id = "top";
-    let sprite_sheet_handle = load_sprite_sheet(world, "texture/obj_stoneblock001");
+    let sprite_sheet_handle = load_sprite_sheet(world, "texture/pathetic");
 
+    // FIXME: Once tiled is used all this will change
     // FIXME: I need to IntoIter Map...
     for (point, tile) in map.iter().collect::<Vec<(Point, Tile)>>() {
 
@@ -106,7 +107,7 @@ fn initialize_map(world: &mut World, map: &Map) {
 
             let sprite_render = SpriteRender {
                 sprite_sheet: sprite_sheet_handle.clone(),
-                sprite_number: 0, // stationary
+                sprite_number: 1, // stationary
             };
             
             world
@@ -117,6 +118,23 @@ fn initialize_map(world: &mut World, map: &Map) {
                 .with(sprite_render)
                 .with(transform)
                 .build();
+        } else if tile.id == '.' {
+            let mut transform = Transform::default();
+
+            transform.set_translation_xyz(point.x as f32 * 64. + 32., HEIGHT - point.y as f32 * 64. - 32., 0.0);
+
+            let sprite_render = SpriteRender {
+                sprite_sheet: sprite_sheet_handle.clone(),
+                sprite_number: 2, // stationary
+            };
+
+            world
+                .create_entity()
+                .with(Position::new(id.to_string(), point))
+                .with(sprite_render)
+                .with(transform)
+                .build();
+
         }
     }
 }
