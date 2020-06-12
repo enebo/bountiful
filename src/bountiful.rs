@@ -19,19 +19,19 @@ impl SimpleState for Bountiful {
 
         let map = generate_map();
 
-        initialise_camera(world);
         initialize_map(world, &map);
-        initialize_player(world);
+        let (x, y) = initialize_player(world);
+        initialise_camera(world, (x, y));
     }
 }
 
 pub const WIDTH: f32 = 1000.;
 pub const HEIGHT: f32 = 1000.;
 
-fn initialise_camera(world: &mut World) {
+fn initialise_camera(world: &mut World, (x, y): (f32, f32)) {
     // Setup camera in a way that our screen covers whole arena and (0, 0) is in the bottom left.
     let mut transform = Transform::default();
-    transform.set_translation_xyz(WIDTH * 0.5, HEIGHT * 0.5, 1.0);
+    transform.set_translation_xyz(x, y, 1.);
 
     world
         .create_entity()
@@ -42,10 +42,11 @@ fn initialise_camera(world: &mut World) {
 
 // FIXME: Placement/Transform should be set how once map is defined?  This will also happen when
 // changing maps.
-fn initialize_player(world: &mut World) {
+fn initialize_player(world: &mut World) -> (f32, f32) {
     let sprite_sheet_handle = load_sprite_sheet(world, "texture/player");
     let mut transform = Transform::default();
-    transform.set_translation_xyz(64. + 32., HEIGHT - 64. - 32., 0.0);
+    let (x, y) = (64. + 32., HEIGHT - 64. - 32.);
+    transform.set_translation_xyz(x, y, 0.0);
 
     let sprite_render = SpriteRender {
         sprite_sheet: sprite_sheet_handle,
@@ -60,23 +61,34 @@ fn initialize_player(world: &mut World) {
         .build();
 
     world.write_component().insert(entity, Player{ entity});
+    (x, y)
 }
 
 fn generate_map() -> Map {
-    let map_string = "################\n\
-                            #..#......#....#\n\
-                            #...##.#.......#\n\
-                            #..##...#.#....#\n\
-                            #..######.#....#\n\
-                            #..............#\n\
-                            #..#......#....#\n\
-                            #...##.#.......#\n\
-                            #..##...#.#....#\n\
-                            #..######.#....#\n\
-                            #..............#\n\
-                            #..............#\n\
-                            #..............#\n\
-                            ################";
+    let map_string = "##########################\n\
+                            #..#........#...#...#....#\n\
+                            #...##.#..####.....#.....#\n\
+                            #..##...#.#..#####.......#\n\
+                            #..######.#........####..#\n\
+                            #............##########..#\n\
+                            #..#......#..#......#....#\n\
+                            #...##.#.....#...........#\n\
+                            #..##...#.#.......####...#\n\
+                            #..######.#.........#....#\n\
+                            #.............######.....#\n\
+                            #.............#....#.....#\n\
+                            #.............#....#.....#\n\
+                            #................#.......#\n\
+                            #..######.#........####..#\n\
+                            #............##########..#\n\
+                            #..#......#..#......#....#\n\
+                            #...##.#.....#...........#\n\
+                            #..##...#.#.......####...#\n\
+                            #..######.#.........#....#\n\
+                            #.............######.....#\n\
+                            #.............#....#.....#\n\
+                            #................#.......#\n\
+                            ##########################";
     crate::resources::map::generate_ascii_map(map_string).unwrap()
 }
 

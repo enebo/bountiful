@@ -9,7 +9,7 @@ use crate::components::{Player, ProposedMove};
 #[derive(SystemDesc)]
 pub struct InputSystem;
 
-const VELOCITY: f32 = 160.0;
+const VELOCITY: f32 = 400.0;
 
 // Input can generate actions and moves.  Moves are proposed and collision system will decide
 // whether they can occur.
