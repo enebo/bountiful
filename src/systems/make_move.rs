@@ -17,7 +17,7 @@ impl<'s> System<'s> for MoveSystem {
         Entities<'s>,
     );
 
-    fn run(&mut self, (mut moves, mut transforms, mut cameras, players, entities): Self::SystemData) {
+    fn run(&mut self, (mut moves, mut transforms, cameras, players, entities): Self::SystemData) {
         let mut to_remove: Vec<(Entity, f32, f32)> = vec![];
 
         for (entity, make_move, transform) in (&entities, &mut moves, &mut transforms).join() {

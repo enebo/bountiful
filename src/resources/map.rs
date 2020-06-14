@@ -204,40 +204,40 @@ impl Display for Map {
     }
 }
 
-pub fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
-    let rows: Vec<&str> = ascii_map.split_terminator('\n').collect();
-    let height = rows.len();
-
-    if height == 0 {
-        return None;
-    }
-
-    let width = rows[0].len();
-
-    // verify all lines are same length;
-    if let Some(_) = rows.iter().find(|e| e.len() != width) {
-        return None;
-    }
-
-    println!("Making map of size: {}x{}", width, height);
-    let mut map = Map::new(width, height, '.', 1);
-
-    for (y, row) in rows.iter().enumerate() {
-        for (x, tile) in row.chars().enumerate() {
-            // FIXME: All tiles will be immutable so share them all.
-            let tile = Tile::new(tile, 1);
-            let point = Point::new(x, y);
-
-            map.set_at(&point, tile).unwrap();
-        }
-    }
-
-    Some(map)
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::resources::map::{Map, Point, Tile, generate_ascii_map};
+    use crate::resources::map::{Map, Point, Tile};
+
+    pub fn generate_ascii_map(ascii_map: &str) -> Option<Map> {
+        let rows: Vec<&str> = ascii_map.split_terminator('\n').collect();
+        let height = rows.len();
+
+        if height == 0 {
+            return None;
+        }
+
+        let width = rows[0].len();
+
+        // verify all lines are same length;
+        if let Some(_) = rows.iter().find(|e| e.len() != width) {
+            return None;
+        }
+
+        println!("Making map of size: {}x{}", width, height);
+        let mut map = Map::new(width, height, '.', 1);
+
+        for (y, row) in rows.iter().enumerate() {
+            for (x, tile) in row.chars().enumerate() {
+                // FIXME: All tiles will be immutable so share them all.
+                let tile = Tile::new(tile, 1);
+                let point = Point::new(x, y);
+
+                map.set_at(&point, tile).unwrap();
+            }
+        }
+
+        Some(map)
+    }
 
     #[test]
     fn test_is_valid_loc() {

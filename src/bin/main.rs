@@ -7,13 +7,16 @@ use amethyst::{
         types::DefaultBackend,
         RenderingBundle,
     },
-    utils::application_root_dir,
+    utils::{
+        application_root_dir,
+        fps_counter::FpsCounterBundle,
+    },
 };
 
 
 use amethyst_imgui::RenderImgui;
 use bountiful::bountiful::Bountiful;
-use bountiful::systems::{InputSystem, MoveSystem, CollisionSystem};
+use bountiful::systems::{InputSystem, MoveSystem, CollisionSystem, DebugSystem};
 
 fn main() -> amethyst::Result<()> {
     amethyst::start_logger(Default::default());
@@ -29,6 +32,8 @@ fn main() -> amethyst::Result<()> {
 
     let game_data = GameDataBuilder::default()
         .with_bundle(input_bundle)?
+        .with_bundle(FpsCounterBundle::default())?
+        .with_bundle(TransformBundle::new())?
         .with_bundle(
             RenderingBundle::<DefaultBackend>::new()
                 .with_plugin(
@@ -38,10 +43,10 @@ fn main() -> amethyst::Result<()> {
                 .with_plugin(RenderImgui::<amethyst::input::StringBindings>::default())
                 .with_plugin(RenderFlat2D::default())
         )?
-        .with_bundle(TransformBundle::new())?
         .with(InputSystem, "player_input", &["imgui_input_system"])
         .with(CollisionSystem, "collisions", &["player_input"])
-        .with(MoveSystem, "moves", &["collisions"]);
+        .with(MoveSystem, "moves", &["collisions"])
+        .with(DebugSystem::new(), "debug", &[]);
 
     let mut game = Application::new(assets_dir, Bountiful, game_data)?;
     game.run();

@@ -3,11 +3,14 @@ use amethyst::{
     assets::{AssetStorage, Loader, Handle},
     core::transform::Transform,
     ecs::{Builder, World, WorldExt},
-    renderer::{Camera, ImageFormat, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
+    renderer::{Camera, ImageFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
 };
 
 use crate::components::{Player, Position, Solid, Bound};
-use crate::resources::{Tile, Point, Map};
+use std::fs::File;
+use std::path::Path;
+use std::io::BufReader;
+use tiled::{parse_with_path, Tileset};
 
 pub struct Bountiful;
 
@@ -17,9 +20,7 @@ impl SimpleState for Bountiful {
 
         world.register::<Position>();
 
-        let map = generate_map();
-
-        initialize_map(world, &map);
+        initialize_map(world);
         let (x, y) = initialize_player(world);
         initialise_camera(world, (x, y));
     }
@@ -45,7 +46,7 @@ fn initialise_camera(world: &mut World, (x, y): (f32, f32)) {
 fn initialize_player(world: &mut World) -> (f32, f32) {
     let sprite_sheet_handle = load_sprite_sheet(world, "texture/player");
     let mut transform = Transform::default();
-    let (x, y) = (64. + 32., HEIGHT - 64. - 32.);
+    let (x, y) = (64. + 32., 64. + 32.);// HEIGHT - 64. - 32.);
     transform.set_translation_xyz(x, y, 0.0);
 
     let sprite_render = SpriteRender {
@@ -60,83 +61,107 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
         .with(transform)
         .build();
 
-    world.write_component().insert(entity, Player{ entity});
+    world.write_component().insert(entity, Player{ entity}).unwrap();
     (x, y)
 }
 
-fn generate_map() -> Map {
-    let map_string = "##########################\n\
-                            #..#........#...#...#....#\n\
-                            #...##.#..####.....#.....#\n\
-                            #..##...#.#..#####.......#\n\
-                            #..######.#........####..#\n\
-                            #............##########..#\n\
-                            #..#......#..#......#....#\n\
-                            #...##.#.....#...........#\n\
-                            #..##...#.#.......####...#\n\
-                            #..######.#.........#....#\n\
-                            #.............######.....#\n\
-                            #.............#....#.....#\n\
-                            #.............#....#.....#\n\
-                            #................#.......#\n\
-                            #..######.#........####..#\n\
-                            #............##########..#\n\
-                            #..#......#..#......#....#\n\
-                            #...##.#.....#...........#\n\
-                            #..##...#.#.......####...#\n\
-                            #..######.#.........#....#\n\
-                            #.............######.....#\n\
-                            #.............#....#.....#\n\
-                            #................#.......#\n\
-                            ##########################";
-    crate::resources::map::generate_ascii_map(map_string).unwrap()
-}
+fn initialize_map(world: &mut World) {
+    let texture_handle = {
+        let texture_storage = world.read_resource::<AssetStorage<Texture>>();
+        world.read_resource::<Loader>().load("texture/pathetic.png", ImageFormat::default(), (), &texture_storage)
+    };
 
-fn initialize_map(world: &mut World, map: &Map) {
-    let id = "top";
-    let sprite_sheet_handle = load_sprite_sheet(world, "texture/pathetic");
+    // Load the tiled map
+    let file = File::open(&Path::new("assets/texture/bountiful2.tmx")).unwrap();
+    let reader = BufReader::new(file);
+    let path = Path::new("assets/texture/pathetic.tsx");
+    let map = parse_with_path(reader, path).unwrap();
 
-    // FIXME: Once tiled is used all this will change
-    // FIXME: I need to IntoIter Map...
-    for (point, tile) in map.iter().collect::<Vec<(Point, Tile)>>() {
+    if let Some(map_tileset) = map.get_tileset_by_gid(1) {
+        let (tile_width, tile_height) = (map_tileset.tile_width, map_tileset.tile_height);
+        let tile_sprites = load_sprites(map_tileset, tile_width, tile_height);
 
-        if tile.id == '#' {
-            let mut transform = Transform::default();
+        let sprite_sheet = SpriteSheet {
+            texture: texture_handle,
+            sprites: tile_sprites
+        };
 
-            transform.set_translation_xyz(point.x as f32 * 64. + 32., HEIGHT - point.y as f32 * 64. - 32., 0.0);
+        let sprite_sheet_handle = {
+            let sprite_sheet_storage = world.read_resource::<AssetStorage<SpriteSheet>>();
+            world.read_resource::<Loader>().load_from_data(sprite_sheet, (), &sprite_sheet_storage)
+        };
 
-            let sprite_render = SpriteRender {
-                sprite_sheet: sprite_sheet_handle.clone(),
-                sprite_number: 1, // stationary
-            };
-            
-            world
-                .create_entity()
-                .with(Position::new(id.to_string(), point))
-                .with(Solid {})
-                .with(Bound::new(64., 64.))
-                .with(sprite_render)
-                .with(transform)
-                .build();
-        } else if tile.id == '.' {
-            let mut transform = Transform::default();
+        // Now that all the tile sprites/textures are loaded in
+        // we can start drawing the tiles for our viewing pleasure
+        // NOTE: Only rendering the first layer
+        for layer_i in 0..2 {
+            let solid = layer_i == 1;
 
-            transform.set_translation_xyz(point.x as f32 * 64. + 32., HEIGHT - point.y as f32 * 64. - 32., 0.0);
+            // Reverse because screen y is bottom at 0 and tile is 0 at top.
+            for (j, row) in map.layers[layer_i].tiles.iter().rev().enumerate() {
+                for (i, tile) in row.iter().enumerate() {
+                    if tile.gid == 0 { continue; } // gids 1-based. 0 means nothing.
 
-            let sprite_render = SpriteRender {
-                sprite_sheet: sprite_sheet_handle.clone(),
-                sprite_number: 2, // stationary
-            };
+                    let tile_sprite = SpriteRender {
+                        sprite_sheet: sprite_sheet_handle.clone(),
+                        sprite_number: (tile.gid - 1) as usize, // sprites are 0-based.
+                    };
 
-            world
-                .create_entity()
-                .with(Position::new(id.to_string(), point))
-                .with(sprite_render)
-                .with(transform)
-                .build();
+                    // adjust x/y to account for sprites being centered in amethyst.
+                    let center_x_offset = tile_width as f32 / 2.0;
+                    let center_y_offset = -(tile_height as i32) as f32 / 2.0;
+                    let x = (i * tile_width as usize) as f32 + center_x_offset;
+                    let y = (j as f32 * tile_height as f32) + tile_height as f32 + center_y_offset;
 
+                    let mut tile_transform = Transform::default();
+                    tile_transform.set_translation_xyz(x,  y, -1.0 + layer_i as f32);
+
+                    let mut tile = world
+                        .create_entity()
+                        .with(tile_transform)
+                        .with(tile_sprite);
+
+                    if solid {
+                        tile = tile
+                            .with(Solid {})
+                            .with(Bound::new(tile_width as f32, tile_height as f32));
+                    }
+
+                    tile.build();
+                }
+            }
         }
     }
+}
+
+fn load_sprites(map_tileset: &Tileset, sprite_w: u32, sprite_h: u32) -> Vec<Sprite> {
+    let mut tile_sprites = Vec::new();
+    let image = &map_tileset.images[0];
+    let (tileset_width, tileset_height) = (image.width, image.height);
+    let columns = (tileset_width / sprite_w as i32) as u32;
+    let rows = (tileset_height / sprite_h as i32) as u32;
+
+    for x in 0..rows {
+        for y in 0..columns {
+            // For some reason rows are columns???
+            let (pixel_top, pixel_left) = ((x * sprite_w), (y * sprite_h));
+            let offsets = [0.0; 2];
+
+            tile_sprites.push(Sprite::from_pixel_values(
+                tileset_width as u32,
+                tileset_height as u32,
+                sprite_w,
+                sprite_h,
+                pixel_left,
+                pixel_top,
+                offsets,
+                false,
+                false
+            ));
+        }
+    }
+
+    tile_sprites
 }
 
 fn load_sprite_sheet(world: &mut World, name: &str) -> Handle<SpriteSheet> {

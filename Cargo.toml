@@ -12,6 +12,7 @@ amethyst-imgui = "0.7.0"
 nalgebra = "0.19.0"
 pathfinding = "2.0.4"
 rand = "0.7.3"
+tiled = "0.9.2"
 
 [dev-dependencies]
 criterion = "0.3.1"
@@ -21,7 +22,8 @@ name = "shortest_path"
 harness = false
 
 [features]
-default = ["vulkan"]
+default = ["vulkan", "tiles"]
 empty = ["amethyst/empty"]
 metal = ["amethyst/metal"]
 vulkan = ["amethyst/vulkan"]
+tiles = ["amethyst/tiles"]
