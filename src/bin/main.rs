@@ -16,7 +16,7 @@ use amethyst::{
 
 use amethyst_imgui::RenderImgui;
 use bountiful::bountiful::Bountiful;
-use bountiful::systems::{InputSystem, MoveSystem, CollisionSystem, DebugSystem};
+use bountiful::systems::{InputSystem, MoveSystem, CollisionSystem, DebugSystem, SimpleAnimationsSystem};
 
 fn main() -> amethyst::Result<()> {
     amethyst::start_logger(Default::default());
@@ -45,7 +45,8 @@ fn main() -> amethyst::Result<()> {
         )?
         .with(InputSystem, "player_input", &["imgui_input_system"])
         .with(CollisionSystem, "collisions", &["player_input"])
-        .with(MoveSystem, "moves", &["collisions"])
+        .with(SimpleAnimationsSystem, "simple_animation", &["collisions"])
+        .with(MoveSystem, "moves", &["simple_animation"])
         .with(DebugSystem::new(), "debug", &[]);
 
     let mut game = Application::new(assets_dir, Bountiful, game_data)?;

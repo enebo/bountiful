@@ -3,6 +3,7 @@ use amethyst::derive::SystemDesc;
 use amethyst::ecs::{Join, Read, ReadStorage, System, SystemData, WriteStorage};
 use amethyst::core::timing::Time;
 use amethyst::input::{InputHandler, StringBindings};
+use winit::MouseButton;
 
 use crate::components::{Player, ProposedMove};
 
@@ -46,6 +47,13 @@ impl<'s> System<'s> for InputSystem {
                     dy
                 }).unwrap();
             }
+
+            // FIXME: How do I click detect
+            if input.mouse_button_is_down(MouseButton::Left) {
+                let mouse_position = input.mouse_position();
+                println!("MP: {:?}", mouse_position);
+            }
+
         }
     }
 }

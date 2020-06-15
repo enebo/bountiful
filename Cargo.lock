@@ -98,6 +98,7 @@ dependencies = [
  "rayon",
  "rustc_version_runtime",
  "serde",
+ "thread_profiler",
  "vergen",
  "winit",
 ]
@@ -134,6 +135,7 @@ dependencies = [
  "log",
  "minterpolate",
  "serde",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -159,6 +161,7 @@ dependencies = [
  "rayon",
  "ron",
  "serde",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -176,6 +179,7 @@ dependencies = [
  "rodio",
  "serde",
  "smallvec 1.4.0",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -187,6 +191,7 @@ dependencies = [
  "log",
  "ron",
  "serde",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -203,6 +208,7 @@ dependencies = [
  "derive-new",
  "log",
  "serde",
+ "thread_profiler",
  "winit",
 ]
 
@@ -227,6 +233,7 @@ dependencies = [
  "serde",
  "specs",
  "specs-hierarchy",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -267,6 +274,7 @@ dependencies = [
  "fnv",
  "serde",
  "smallvec 1.4.0",
+ "thread_profiler",
  "winit",
 ]
 
@@ -281,6 +289,7 @@ dependencies = [
  "amethyst_error",
  "fluent",
  "serde",
+ "thread_profiler",
  "unic-langid",
 ]
 
@@ -324,6 +333,7 @@ dependencies = [
  "serde",
  "smallvec 1.4.0",
  "static_assertions 1.1.0",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -349,6 +359,7 @@ dependencies = [
  "rayon",
  "serde",
  "smallvec 1.4.0",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -380,6 +391,7 @@ dependencies = [
  "ron",
  "serde",
  "smallvec 1.4.0",
+ "thread_profiler",
  "unicode-normalization",
  "unicode-segmentation",
  "winit",
@@ -403,6 +415,7 @@ dependencies = [
  "serde",
  "specs-derive",
  "specs-hierarchy",
+ "thread_profiler",
 ]
 
 [[package]]
@@ -601,6 +614,7 @@ dependencies = [
  "pathfinding",
  "rand 0.7.3",
  "tiled",
+ "winit",
 ]
 
 [[package]]

@@ -6,7 +6,7 @@ use amethyst::{
     renderer::{Camera, ImageFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
 };
 
-use crate::components::{Player, Position, Solid, Bound};
+use crate::components::{Player, Position, Solid, Bound, SpriteAnimation};
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
@@ -62,6 +62,7 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
     let entity = world
         .create_entity()
         .with(sprite_render)
+        .with(SpriteAnimation::new(17, 8, 0.05))
         .with(Bound::new(28., 54.))
         .with(transform)
         .build();
