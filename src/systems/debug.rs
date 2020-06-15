@@ -1,13 +1,15 @@
 use amethyst::{
-    core::Time,
-    ecs::prelude::{Read, System},
+    core::{Time, Transform},
+    ecs::prelude::{Join, Read, ReadStorage, System},
     utils::fps_counter::FpsCounter,
 };
-
 use amethyst_imgui::{
     imgui,
     imgui::im_str,
 };
+use crate::bountiful::{TILE_WIDTH, TILE_HEIGHT};
+use crate::components::Player;
+
 
 pub struct DebugSystem {
     elapsed_time: f32,
@@ -24,11 +26,13 @@ const DISTANCE: f32 = 10.0;
 
 impl<'s> System<'s> for DebugSystem {
     type SystemData = (
+        ReadStorage<'s, Player>,
+        ReadStorage<'s, Transform>,
         Read<'s, Time>,
         Read<'s, FpsCounter>,
     );
 
-    fn run(&mut self, (time, fps_counter): Self::SystemData) {
+    fn run(&mut self, (players, transforms, time, fps_counter): Self::SystemData) {
         let mut open = true;
         let window_pos = [DISTANCE, DISTANCE];
         let window_pos_pivot = [0.0, 0.0];
@@ -55,6 +59,11 @@ impl<'s> System<'s> for DebugSystem {
 
             window.build(ui, || {
                 ui.text(im_str!("FPS: {}", self.last_fps));
+                for (_player, transform) in (&players, &transforms).join() {
+                    let (i, j) = (transform.translation().x, transform.translation().y);
+                    ui.text(im_str!("Loc [{},{}]", i, j));
+                    ui.text(im_str!("Point [{},{}]", (i / TILE_WIDTH) as usize, (j / TILE_HEIGHT) as usize));
+                }
             });
         });
     }

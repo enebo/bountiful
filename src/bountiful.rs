@@ -26,6 +26,8 @@ impl SimpleState for Bountiful {
     }
 }
 
+pub const TILE_WIDTH: f32 = 64.;
+pub const TILE_HEIGHT: f32 = 64.;
 pub const WIDTH: f32 = 1000.;
 pub const HEIGHT: f32 = 1000.;
 
@@ -46,7 +48,9 @@ fn initialise_camera(world: &mut World, (x, y): (f32, f32)) {
 fn initialize_player(world: &mut World) -> (f32, f32) {
     let sprite_sheet_handle = load_sprite_sheet(world, "texture/player");
     let mut transform = Transform::default();
-    let (x, y) = (64. + 32., 64. + 32.);// HEIGHT - 64. - 32.);
+    // FIXME: Should be a position from map to start.
+    // FIXME: make center of tile helper
+    let (x, y) = (TILE_WIDTH + TILE_WIDTH / 2., TILE_HEIGHT + TILE_WIDTH / 2.); // (1, 1) centered
     transform.set_translation_xyz(x, y, 0.0);
 
     let sprite_render = SpriteRender {
@@ -54,6 +58,7 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
         sprite_number: 0, // stationary
     };
 
+    // FIXME: need to define bound of things better than this.
     let entity = world
         .create_entity()
         .with(sprite_render)
