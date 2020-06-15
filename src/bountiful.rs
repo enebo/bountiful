@@ -10,7 +10,7 @@ use crate::components::{Player, Position, Solid, Bound};
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
-use tiled::{parse_with_path, Tileset};
+use tiled::{parse_with_path, Tileset, Map};
 
 pub struct Bountiful;
 
@@ -66,69 +66,59 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
 }
 
 fn initialize_map(world: &mut World) {
-    let texture_handle = {
-        let texture_storage = world.read_resource::<AssetStorage<Texture>>();
-        world.read_resource::<Loader>().load("texture/pathetic.png", ImageFormat::default(), (), &texture_storage)
+    let texture_handle = load_texture_handle(world, "texture/pathetic");
+    let map = load_tiled_map();
+    let map_tileset = map.get_tileset_by_gid(1).expect("Missing first tileset in tiled map");
+    let (tile_width, tile_height) = (map_tileset.tile_width, map_tileset.tile_height);
+    let tile_sprites = load_sprites(map_tileset, tile_width, tile_height);
+
+    let sprite_sheet = SpriteSheet {
+        texture: texture_handle,
+        sprites: tile_sprites
     };
 
-    // Load the tiled map
-    let file = File::open(&Path::new("assets/texture/bountiful2.tmx")).unwrap();
-    let reader = BufReader::new(file);
-    let path = Path::new("assets/texture/pathetic.tsx");
-    let map = parse_with_path(reader, path).unwrap();
+    let sprite_sheet_handle = {
+        let sprite_sheet_storage = world.read_resource::<AssetStorage<SpriteSheet>>();
+        world.read_resource::<Loader>().load_from_data(sprite_sheet, (), &sprite_sheet_storage)
+    };
 
-    if let Some(map_tileset) = map.get_tileset_by_gid(1) {
-        let (tile_width, tile_height) = (map_tileset.tile_width, map_tileset.tile_height);
-        let tile_sprites = load_sprites(map_tileset, tile_width, tile_height);
+    // Now that all the tile sprites/textures are loaded in
+    // we can start drawing the tiles for our viewing pleasure
+    // NOTE: Only rendering the first layer
+    for layer_i in 0..2 {
+        let solid = layer_i == 1;
 
-        let sprite_sheet = SpriteSheet {
-            texture: texture_handle,
-            sprites: tile_sprites
-        };
+        // Reverse because screen y is bottom at 0 and tile is 0 at top.
+        for (j, row) in map.layers[layer_i].tiles.iter().rev().enumerate() {
+            for (i, tile) in row.iter().enumerate() {
+                if tile.gid == 0 { continue; } // gids 1-based. 0 means nothing.
 
-        let sprite_sheet_handle = {
-            let sprite_sheet_storage = world.read_resource::<AssetStorage<SpriteSheet>>();
-            world.read_resource::<Loader>().load_from_data(sprite_sheet, (), &sprite_sheet_storage)
-        };
+                let tile_sprite = SpriteRender {
+                    sprite_sheet: sprite_sheet_handle.clone(),
+                    sprite_number: (tile.gid - 1) as usize, // sprites are 0-based.
+                };
 
-        // Now that all the tile sprites/textures are loaded in
-        // we can start drawing the tiles for our viewing pleasure
-        // NOTE: Only rendering the first layer
-        for layer_i in 0..2 {
-            let solid = layer_i == 1;
+                // adjust x/y to account for sprites being centered in amethyst.
+                let center_x_offset = tile_width as f32 / 2.0;
+                let center_y_offset = -(tile_height as i32) as f32 / 2.0;
+                let x = (i * tile_width as usize) as f32 + center_x_offset;
+                let y = (j as f32 * tile_height as f32) + tile_height as f32 + center_y_offset;
 
-            // Reverse because screen y is bottom at 0 and tile is 0 at top.
-            for (j, row) in map.layers[layer_i].tiles.iter().rev().enumerate() {
-                for (i, tile) in row.iter().enumerate() {
-                    if tile.gid == 0 { continue; } // gids 1-based. 0 means nothing.
+                let mut tile_transform = Transform::default();
+                tile_transform.set_translation_xyz(x, y, -1.0 + layer_i as f32);
 
-                    let tile_sprite = SpriteRender {
-                        sprite_sheet: sprite_sheet_handle.clone(),
-                        sprite_number: (tile.gid - 1) as usize, // sprites are 0-based.
-                    };
+                let mut tile = world
+                    .create_entity()
+                    .with(tile_transform)
+                    .with(tile_sprite);
 
-                    // adjust x/y to account for sprites being centered in amethyst.
-                    let center_x_offset = tile_width as f32 / 2.0;
-                    let center_y_offset = -(tile_height as i32) as f32 / 2.0;
-                    let x = (i * tile_width as usize) as f32 + center_x_offset;
-                    let y = (j as f32 * tile_height as f32) + tile_height as f32 + center_y_offset;
-
-                    let mut tile_transform = Transform::default();
-                    tile_transform.set_translation_xyz(x,  y, -1.0 + layer_i as f32);
-
-                    let mut tile = world
-                        .create_entity()
-                        .with(tile_transform)
-                        .with(tile_sprite);
-
-                    if solid {
-                        tile = tile
-                            .with(Solid {})
-                            .with(Bound::new(tile_width as f32, tile_height as f32));
-                    }
-
-                    tile.build();
+                if solid {
+                    tile = tile
+                        .with(Solid {})
+                        .with(Bound::new(tile_width as f32, tile_height as f32));
                 }
+
+                tile.build();
             }
         }
     }
@@ -164,27 +154,25 @@ fn load_sprites(map_tileset: &Tileset, sprite_w: u32, sprite_h: u32) -> Vec<Spri
     tile_sprites
 }
 
-fn load_sprite_sheet(world: &mut World, name: &str) -> Handle<SpriteSheet> {
-    // Load the sprite sheet necessary to render the graphics.
-    // The texture is the pixel data
-    // `texture_handle` is a cloneable reference to the texture
-    let texture_handle = {
-        let loader = world.read_resource::<Loader>();
-        let texture_storage = world.read_resource::<AssetStorage<Texture>>();
-        loader.load(
-            name.to_string() + ".png",
-            ImageFormat::default(),
-            (),
-            &texture_storage,
-        )
-    };
+fn load_texture_handle(world: &mut World, prefix: &str) -> Handle<Texture> {
+    let texture_storage = world.read_resource::<AssetStorage<Texture>>();
+    let name = prefix.to_string() + ".png";
 
-    let loader = world.read_resource::<Loader>();
+    world.read_resource::<Loader>().load(name, ImageFormat::default(), (), &texture_storage)
+}
+
+fn load_sprite_sheet(world: &mut World, prefix: &str) -> Handle<SpriteSheet> {
+    let texture_handle= load_texture_handle(world, prefix);
+    let name = prefix.to_string() + ".ron";
     let sprite_sheet_store = world.read_resource::<AssetStorage<SpriteSheet>>();
-    loader.load(
-        name.to_string() + ".ron", // Here we load the associated ron file
-        SpriteSheetFormat(texture_handle),
-        (),
-        &sprite_sheet_store,
-    )
+
+    world.read_resource::<Loader>().load(name, SpriteSheetFormat(texture_handle), (), &sprite_sheet_store)
+}
+
+fn load_tiled_map() -> Map {
+    let file = File::open(&Path::new("assets/texture/bountiful.tmx")).unwrap();
+    let path = Path::new("assets/texture/pathetic.tsx");
+
+    parse_with_path(BufReader::new(file), path)
+        .expect("Assets missing while loading tmx")
 }
