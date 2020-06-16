@@ -26,8 +26,7 @@ impl<'s> System<'s> for CollisionSystem {
 
         for (new_move, transform, sprite_render, anim) in (&mut moves, &transforms, &mut renders, &mut sprite_animations).join() {
             if new_move.move_type == ProposedMoveType::Stop {
-                anim.current_frame = 0;
-                sprite_render.sprite_number = anim.first_frame;
+                sprite_render.sprite_number = anim.stop();
                 continue;
             }
             let entity = new_move.entity;

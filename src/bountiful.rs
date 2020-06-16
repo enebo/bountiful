@@ -62,7 +62,7 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
     let entity = world
         .create_entity()
         .with(sprite_render)
-        .with(SpriteAnimation::new(17, 8, 0.05))
+        .with(SpriteAnimation::new_directional(1,17,9, 25, 8, 0.05))
         .with(Bound::new(28., 54.))
         .with(transform)
         .build();
