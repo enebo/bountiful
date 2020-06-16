@@ -1,8 +1,9 @@
 use amethyst::core::Transform;
 use amethyst::derive::SystemDesc;
 use amethyst::ecs::{Entity, Entities, Join, ReadStorage, System, SystemData, WriteStorage};
+use amethyst::renderer::SpriteRender;
 
-use crate::components::{MakeMove, ProposedMove, Solid, Bound};
+use crate::components::{MakeMove, ProposedMove, ProposedMoveType, Solid, Bound, SpriteAnimation};
 
 #[derive(SystemDesc)]
 pub struct CollisionSystem;
@@ -14,13 +15,21 @@ impl<'s> System<'s> for CollisionSystem {
         WriteStorage<'s, ProposedMove>,
         ReadStorage<'s, Solid>,
         ReadStorage<'s, Bound>,
+        WriteStorage<'s, SpriteRender>,
+        WriteStorage<'s, SpriteAnimation>,
         Entities<'s>,
     );
 
-    fn run(&mut self, (mut make_move, transforms, mut moves, solids, bounds, entities): Self::SystemData) {
+    // FIXME: More complication animations cannot be combined line this...systems? or type of aninmation so it is one component
+    fn run(&mut self, (mut make_move, transforms, mut moves, solids, bounds, mut renders, mut sprite_animations, entities): Self::SystemData) {
         let mut to_remove: Vec<Entity> = vec![];
 
-        for (new_move, transform) in (&mut moves, &transforms).join() {
+        for (new_move, transform, sprite_render, anim) in (&mut moves, &transforms, &mut renders, &mut sprite_animations).join() {
+            if new_move.move_type == ProposedMoveType::Stop {
+                anim.current_frame = 0;
+                sprite_render.sprite_number = anim.first_frame;
+                continue;
+            }
             let entity = new_move.entity;
             let (x, y) = (transform.translation().x, transform.translation().y);
             let (dx, dy) = (new_move.dx, new_move.dy);

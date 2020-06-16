@@ -1,9 +1,10 @@
 (
-    axes: {},
-    actions: {
-        "n": [[Key(W)]],
-        "w": [[Key(A)]],
-        "e": [[Key(D)]],
-        "s": [[Key(S)]],
-    },
-)
+     axes: {},
+     actions: {
+         "n": [[Key(W)]],
+         "w": [[Key(A)]],
+         "e": [[Key(D)]],
+         "s": [[Key(S)]],
+         "shift": [[Key(LShift)]],
+     },
+ )

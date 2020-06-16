@@ -10,6 +10,6 @@ pub use self::bound::Bound;
 pub use self::make_move::MakeMove;
 pub use self::player::Player;
 pub use self::position::Position;
-pub use self::proposed_move::ProposedMove;
+pub use self::proposed_move::{ProposedMove, ProposedMoveType};
 pub use self::solid::Solid;
 pub use self::sprite_animation::SpriteAnimation;
