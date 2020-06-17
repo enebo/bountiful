@@ -6,7 +6,7 @@ use amethyst::{
     renderer::{Camera, ImageFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
 };
 
-use crate::components::{Player, Position, Solid, Bound, SpriteAnimation};
+use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation};
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
@@ -23,6 +23,7 @@ impl SimpleState for Bountiful {
         initialize_map(world);
         let (x, y) = initialize_player(world);
         initialise_camera(world, (x, y));
+        initialize_pointer(world);
     }
 }
 
@@ -30,6 +31,11 @@ pub const TILE_WIDTH: f32 = 64.;
 pub const TILE_HEIGHT: f32 = 64.;
 pub const WIDTH: f32 = 1000.;
 pub const HEIGHT: f32 = 1000.;
+
+pub const CAMERA_Z: f32 = 1.0;
+pub const POINTER_Z: f32 = 0.1;
+pub const PLAYERS_Z: f32 = 0.0;
+pub const MAP_LAYERS_Z: [f32; 3] = [-0.3, -0.2, -0.1]; // base, solid, iso
 
 fn initialise_camera(world: &mut World, (x, y): (f32, f32)) {
     // Setup camera in a way that our screen covers whole arena and (0, 0) is in the bottom left.
@@ -43,6 +49,26 @@ fn initialise_camera(world: &mut World, (x, y): (f32, f32)) {
         .build();
 }
 
+fn initialize_pointer(world: &mut World) {
+    let sprite_sheet_handle = load_sprite_sheet(world, "texture/pointer");
+
+    let sprite_render = SpriteRender {
+        sprite_sheet: sprite_sheet_handle.clone(),
+        sprite_number: 0, // stationary
+    };
+
+    let mut transform = Transform::default();
+    transform.set_translation_xyz(0.0, 0.0, POINTER_Z);
+
+    // FIXME: This should come in its own asset and be animated.
+    let entity = world
+        .create_entity()
+        .with(sprite_render)
+        .with(transform)
+        .build();
+
+    world.write_component().insert(entity, Pointer {}).unwrap();
+}
 // FIXME: Placement/Transform should be set how once map is defined?  This will also happen when
 // changing maps.
 fn initialize_player(world: &mut World) -> (f32, f32) {
@@ -51,7 +77,7 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
     // FIXME: Should be a position from map to start.
     // FIXME: make center of tile helper
     let (x, y) = (TILE_WIDTH + TILE_WIDTH / 2., TILE_HEIGHT + TILE_WIDTH / 2.); // (1, 1) centered
-    transform.set_translation_xyz(x, y, 0.0);
+    transform.set_translation_xyz(x, y, PLAYERS_Z);
 
     let sprite_render = SpriteRender {
         sprite_sheet: sprite_sheet_handle,
@@ -111,7 +137,7 @@ fn initialize_map(world: &mut World) {
                 let y = (j as f32 * tile_height as f32) + tile_height as f32 + center_y_offset;
 
                 let mut tile_transform = Transform::default();
-                tile_transform.set_translation_xyz(x, y, -1.0 + layer_i as f32);
+                tile_transform.set_translation_xyz(x, y, MAP_LAYERS_Z[layer_i] as f32);
 
                 let mut tile = world
                     .create_entity()

@@ -1,11 +1,13 @@
 use amethyst::core::Transform;
 use amethyst::derive::SystemDesc;
-use amethyst::ecs::{Join, Read, ReadStorage, System, SystemData, WriteStorage};
+use amethyst::ecs::{Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteStorage};
 use amethyst::core::timing::Time;
 use amethyst::input::{InputHandler, StringBindings};
+use amethyst_window::ScreenDimensions;
 use winit::MouseButton;
 
-use crate::components::{Player, ProposedMove, ProposedMoveType};
+use crate::components::{Player, Pointer, ProposedMove, ProposedMoveType};
+use crate::bountiful::{HEIGHT, WIDTH, TILE_WIDTH, TILE_HEIGHT, POINTER_Z};
 
 #[derive(SystemDesc)]
 pub struct InputSystem;
@@ -19,12 +21,17 @@ impl<'s> System<'s> for InputSystem {
         WriteStorage<'s, ProposedMove>,
         WriteStorage<'s, Transform>,
         ReadStorage<'s, Player>,
+        ReadStorage<'s, Pointer>,
+        ReadExpect<'s, ScreenDimensions>,
         Read<'s, Time>,
         Read<'s, InputHandler<StringBindings>>,
     );
 
-    fn run(&mut self, (mut moves, mut transforms, players, time, input): Self::SystemData) {
-        for (player, _transform) in (&players, &mut transforms).join() {
+    // FIXME: pointer should probably just be a resource?  There is only one
+    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, time, input): Self::SystemData) {
+        let mut pointer: Option<((f32, f32), (f32, f32))> = None;
+
+        for (player, transform) in (&players, &transforms).join() {
             let entity = player.entity;
             let (mut dx, mut dy): (f32, f32) = (0.0, 0.0);
 
@@ -59,12 +66,34 @@ impl<'s> System<'s> for InputSystem {
                 dy
             }).unwrap();
 
-            // FIXME: How do I click detect
+            // FIXME: use boolean to toggle from up/down (current selection vs selected).
             if input.mouse_button_is_down(MouseButton::Left) {
-                let mouse_position = input.mouse_position();
-                println!("MP: {:?}", mouse_position);
+                if let Some((x, y)) = input.mouse_position() {
+                    pointer = Some(((x, y), (transform.translation().x, transform.translation().y)));
+                }
             }
+        }
 
+        // FIXME: This double tuple is a little weird
+        // FIXME: Move this logic to a helper?  Seems like it will be used more than one place eventually.
+        if let Some(((x, y), (px, py))) = pointer {
+            let (width, height) = (dimensions.width(), dimensions.height());
+            for (_pointer, transform) in (&pointers, &mut transforms).join() {
+                let (nx, ny) = mouse_translation((x, y), (width, height));
+                // Player is at center of screen. Normalize with this to figure out where pointer is.
+                let (tx, ty) = (nx + (px - WIDTH/2.), (ny + (py - HEIGHT/2.)));
+                // Adjust location to be center of tile pointer happens to be on.
+                let (cx, cy) =
+                    (((tx / TILE_WIDTH).floor() * TILE_WIDTH + TILE_WIDTH / 2.),
+                     ((ty / TILE_HEIGHT).floor() * TILE_HEIGHT + TILE_HEIGHT / 2.));
+                transform.set_translation_xyz(cx, cy, POINTER_Z);
+            }
         }
     }
+
+}
+
+/// Convert mouse x,y to logical location within transform space on the screen.
+pub fn mouse_translation((x, y): (f32, f32), (width, height): (f32, f32)) -> (f32, f32) {
+    (x / width * WIDTH, (height - y) / height * HEIGHT)
 }
