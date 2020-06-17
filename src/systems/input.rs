@@ -3,6 +3,7 @@ use amethyst::derive::SystemDesc;
 use amethyst::ecs::{Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteStorage};
 use amethyst::core::timing::Time;
 use amethyst::input::{InputHandler, StringBindings};
+use amethyst::renderer::SpriteRender;
 use amethyst_window::ScreenDimensions;
 use winit::MouseButton;
 
@@ -23,12 +24,14 @@ impl<'s> System<'s> for InputSystem {
         ReadStorage<'s, Player>,
         ReadStorage<'s, Pointer>,
         ReadExpect<'s, ScreenDimensions>,
+        WriteStorage<'s, SpriteRender>,
         Read<'s, Time>,
         Read<'s, InputHandler<StringBindings>>,
     );
 
     // FIXME: pointer should probably just be a resource?  There is only one
-    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, time, input): Self::SystemData) {
+    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, mut renders, time, input): Self::SystemData) {
+        let mut mouse_pressed = false;
         let mut pointer: Option<((f32, f32), (f32, f32))> = None;
 
         for (player, transform) in (&players, &transforms).join() {
@@ -66,10 +69,10 @@ impl<'s> System<'s> for InputSystem {
                 dy
             }).unwrap();
 
-            // FIXME: use boolean to toggle from up/down (current selection vs selected).
-            if input.mouse_button_is_down(MouseButton::Left) {
-                if let Some((x, y)) = input.mouse_position() {
-                    pointer = Some(((x, y), (transform.translation().x, transform.translation().y)));
+            if let Some((x, y)) = input.mouse_position() {
+                pointer = Some(((x, y), (transform.translation().x, transform.translation().y)));
+                if input.mouse_button_is_down(MouseButton::Left) {
+                    mouse_pressed = true;
                 }
             }
         }
@@ -78,7 +81,9 @@ impl<'s> System<'s> for InputSystem {
         // FIXME: Move this logic to a helper?  Seems like it will be used more than one place eventually.
         if let Some(((x, y), (px, py))) = pointer {
             let (width, height) = (dimensions.width(), dimensions.height());
-            for (_pointer, transform) in (&pointers, &mut transforms).join() {
+            for (_pointer, render, transform) in (&pointers, &mut renders, &mut transforms).join() {
+                render.sprite_number = if mouse_pressed { 1 } else { 0 };
+
                 let (nx, ny) = mouse_translation((x, y), (width, height));
                 // Player is at center of screen. Normalize with this to figure out where pointer is.
                 let (tx, ty) = (nx + (px - WIDTH/2.), (ny + (py - HEIGHT/2.)));
