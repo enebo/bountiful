@@ -3,12 +3,13 @@ use amethyst::derive::SystemDesc;
 use amethyst::ecs::{Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteStorage};
 use amethyst::core::timing::Time;
 use amethyst::input::{InputHandler, StringBindings};
-use amethyst::renderer::SpriteRender;
+use amethyst::renderer::{Camera, SpriteRender};
 use amethyst_window::ScreenDimensions;
 use winit::MouseButton;
 
 use crate::components::{Player, Pointer, ProposedMove, ProposedMoveType};
 use crate::bountiful::{HEIGHT, WIDTH, TILE_WIDTH, TILE_HEIGHT, POINTER_Z};
+use nalgebra::{Point3, Vector2};
 
 #[derive(SystemDesc)]
 pub struct InputSystem;
@@ -25,72 +26,69 @@ impl<'s> System<'s> for InputSystem {
         ReadStorage<'s, Pointer>,
         ReadExpect<'s, ScreenDimensions>,
         WriteStorage<'s, SpriteRender>,
+        ReadStorage<'s, Camera>,
         Read<'s, Time>,
         Read<'s, InputHandler<StringBindings>>,
     );
 
     // FIXME: pointer should probably just be a resource?  There is only one
-    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, mut renders, time, input): Self::SystemData) {
+    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, mut renders, cameras, time, input): Self::SystemData) {
         let mut mouse_pressed = false;
-        let mut pointer: Option<((f32, f32), (f32, f32))> = None;
+        let mut pointer: Option<Point3<f32>> = None;
 
-        for (player, transform) in (&players, &transforms).join() {
-            let entity = player.entity;
-            let (mut dx, mut dy): (f32, f32) = (0.0, 0.0);
+        for (camera, camera_transform) in (&cameras, &transforms).join() {
+            for player in (&players).join() {
+                let entity = player.entity;
+                let (mut dx, mut dy): (f32, f32) = (0.0, 0.0);
 
-            let velocity = match input.action_is_down("shift") {
-                Some(true) => VELOCITY * 3.,
-                _ => VELOCITY,
-            };
+                let velocity = match input.action_is_down("shift") {
+                    Some(true) => VELOCITY * 3.,
+                    _ => VELOCITY,
+                };
 
-            if let Some(true) = input.action_is_down("s") {
-                dy += -velocity * time.delta_seconds();
-            }
-            if let Some(true) = input.action_is_down("n") {
-                dy += velocity * time.delta_seconds();
-            }
-            if let Some(true) = input.action_is_down("e") {
-                dx += velocity * time.delta_seconds();
-            }
-            if let Some(true) = input.action_is_down("w") {
-                dx += -velocity * time.delta_seconds();
-            }
+                if let Some(true) = input.action_is_down("s") {
+                    dy += -velocity * time.delta_seconds();
+                }
+                if let Some(true) = input.action_is_down("n") {
+                    dy += velocity * time.delta_seconds();
+                }
+                if let Some(true) = input.action_is_down("e") {
+                    dx += velocity * time.delta_seconds();
+                }
+                if let Some(true) = input.action_is_down("w") {
+                    dx += -velocity * time.delta_seconds();
+                }
 
-            let move_type = if dx != 0.0 || dy != 0.0 {
-                ProposedMoveType::Walk
-            } else {
-                ProposedMoveType::Stop
-            };
+                let move_type = if dx != 0.0 || dy != 0.0 {
+                    ProposedMoveType::Walk
+                } else {
+                    ProposedMoveType::Stop
+                };
 
-            moves.insert(player.entity,ProposedMove {
-                move_type,
-                entity,
-                dx,
-                dy
-            }).unwrap();
+                moves.insert(player.entity, ProposedMove {
+                    move_type,
+                    entity,
+                    dx,
+                    dy
+                }).unwrap();
 
-            if let Some((x, y)) = input.mouse_position() {
-                pointer = Some(((x, y), (transform.translation().x, transform.translation().y)));
-                if input.mouse_button_is_down(MouseButton::Left) {
-                    mouse_pressed = true;
+                if let Some((x, y)) = input.mouse_position() {
+                    pointer = Some(camera
+                        .projection()
+                        .screen_to_world_point(Point3::new(x, y, 0.),
+                                               Vector2::new(dimensions.width(), dimensions.height()),
+                                               camera_transform));
+                    if input.mouse_button_is_down(MouseButton::Left) {
+                        mouse_pressed = true;
+                    }
                 }
             }
         }
 
-        // FIXME: This double tuple is a little weird
-        // FIXME: Move this logic to a helper?  Seems like it will be used more than one place eventually.
-        if let Some(((x, y), (px, py))) = pointer {
-            let (width, height) = (dimensions.width(), dimensions.height());
+        if let Some(pos) = pointer {
             for (_pointer, render, transform) in (&pointers, &mut renders, &mut transforms).join() {
                 render.sprite_number = if mouse_pressed { 1 } else { 0 };
-
-                let (nx, ny) = mouse_translation((x, y), (width, height));
-                // Player is at center of screen. Normalize with this to figure out where pointer is.
-                let (tx, ty) = (nx + (px - WIDTH/2.), (ny + (py - HEIGHT/2.)));
-                // Adjust location to be center of tile pointer happens to be on.
-                let (cx, cy) =
-                    (((tx / TILE_WIDTH).floor() * TILE_WIDTH + TILE_WIDTH / 2.),
-                     ((ty / TILE_HEIGHT).floor() * TILE_HEIGHT + TILE_HEIGHT / 2.));
+                let (cx, cy) = center_of_tile(pos.x, pos.y);
                 transform.set_translation_xyz(cx, cy, POINTER_Z);
             }
         }
@@ -98,7 +96,7 @@ impl<'s> System<'s> for InputSystem {
 
 }
 
-/// Convert mouse x,y to logical location within transform space on the screen.
-pub fn mouse_translation((x, y): (f32, f32), (width, height): (f32, f32)) -> (f32, f32) {
-    (x / width * WIDTH, (height - y) / height * HEIGHT)
+fn center_of_tile(x: f32, y: f32) -> (f32, f32) {
+    (((x / TILE_WIDTH).floor() * TILE_WIDTH + TILE_WIDTH / 2.),
+     ((y / TILE_HEIGHT).floor() * TILE_HEIGHT + TILE_HEIGHT / 2.));
 }
