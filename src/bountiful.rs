@@ -2,11 +2,14 @@ use amethyst::{
     SimpleState, GameData, StateData,
     assets::{AssetStorage, Loader, Handle},
     core::transform::Transform,
-    ecs::{Builder, World, WorldExt},
+    ecs::{Builder, Entity, World, WorldExt},
     renderer::{Camera, ImageFormat, Sprite, SpriteRender, SpriteSheet, SpriteSheetFormat, Texture},
 };
+use amethyst_core::transform::components::Parent;
+use amethyst_window::ScreenDimensions;
+use nalgebra::{Point3, Vector2, Vector3};
 
-use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation};
+use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation, Hotbar};
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
@@ -21,9 +24,10 @@ impl SimpleState for Bountiful {
         world.register::<Position>();
 
         initialize_map(world);
-        let (x, y) = initialize_player(world);
-        initialise_camera(world, (x, y));
+        let (player, player_transform) = initialize_player(world);
+        let camera= initialise_camera(world, player);
         initialize_pointer(world);
+        initialize_hotbar(world, &camera, player, &player_transform);
     }
 }
 
@@ -37,16 +41,20 @@ pub const POINTER_Z: f32 = 0.1;
 pub const PLAYERS_Z: f32 = 0.0;
 pub const MAP_LAYERS_Z: [f32; 3] = [-0.3, -0.2, -0.1]; // base, solid, iso
 
-fn initialise_camera(world: &mut World, (x, y): (f32, f32)) {
-    // Setup camera in a way that our screen covers whole arena and (0, 0) is in the bottom left.
-    let mut transform = Transform::default();
-    transform.set_translation_xyz(x, y, 1.);
+fn initialise_camera(world: &mut World, player: Entity) -> Camera {
+    let mut transform= Transform::default();
+    transform.set_translation_xyz(0., 0., 1.);
+
+    let camera = Camera::standard_2d(WIDTH, HEIGHT);
 
     world
         .create_entity()
-        .with(Camera::standard_2d(WIDTH, HEIGHT))
+        .with(camera.clone())
+        .with(Parent { entity: player })
         .with(transform)
         .build();
+
+    camera
 }
 
 fn initialize_pointer(world: &mut World) {
@@ -60,7 +68,6 @@ fn initialize_pointer(world: &mut World) {
     let mut transform = Transform::default();
     transform.set_translation_xyz(0.0, 0.0, POINTER_Z);
 
-    // FIXME: This should come in its own asset and be animated.
     let entity = world
         .create_entity()
         .with(sprite_render)
@@ -69,15 +76,48 @@ fn initialize_pointer(world: &mut World) {
 
     world.write_component().insert(entity, Pointer {}).unwrap();
 }
+
+fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_transform: &Transform) {
+    let dims = {
+        let sd = world.read_resource::<ScreenDimensions>();
+        Vector2::new(sd.width(), sd.height())
+    };
+
+    let sprite_sheet_handle = load_sprite_sheet(world, "texture/hotbar");
+    let hotbar_count = 8;
+    let width = dims.x / 2. - hotbar_count as f32 / 2. * TILE_WIDTH;
+    let point = Point3::new(width, dims.y - TILE_HEIGHT / 2., 0.);
+    let pos = camera.projection().screen_to_world_point(point, dims, player_transform);
+
+    world.register::<Hotbar>(); // FIXME: Remove on once system uses it.
+    for i in 0..hotbar_count {
+        let sprite_render = SpriteRender {
+            sprite_sheet: sprite_sheet_handle.clone(),
+            sprite_number: 0, // stationary
+        };
+
+        let mut transform = Transform::default();
+        transform.set_translation_xyz(pos.x + i as f32 * TILE_WIDTH, pos.y, PLAYERS_Z);
+
+        let entity = world
+            .create_entity()
+            .with(sprite_render)
+            .with(Parent { entity: player })
+            .with(transform)
+            .build();
+
+        world.write_component().insert(entity, Hotbar { entity: None }).unwrap();
+    }
+
+}
+
 // FIXME: Placement/Transform should be set how once map is defined?  This will also happen when
 // changing maps.
-fn initialize_player(world: &mut World) -> (f32, f32) {
+fn initialize_player(world: &mut World) -> (Entity, Transform) {
     let sprite_sheet_handle = load_sprite_sheet(world, "texture/player");
     let mut transform = Transform::default();
     // FIXME: Should be a position from map to start.
-    // FIXME: make center of tile helper
-    let (x, y) = (TILE_WIDTH + TILE_WIDTH / 2., TILE_HEIGHT + TILE_WIDTH / 2.); // (1, 1) centered
-    transform.set_translation_xyz(x, y, PLAYERS_Z);
+    transform.set_translation(center_of_tile(&Point3::new(TILE_WIDTH, TILE_HEIGHT, PLAYERS_Z), None));
 
     let sprite_render = SpriteRender {
         sprite_sheet: sprite_sheet_handle,
@@ -90,11 +130,11 @@ fn initialize_player(world: &mut World) -> (f32, f32) {
         .with(sprite_render)
         .with(SpriteAnimation::new_directional(1,17,9, 25, 8, 0.05))
         .with(Bound::new(28., 54.))
-        .with(transform)
+        .with(transform.clone())
         .build();
 
     world.write_component().insert(entity, Player{ entity}).unwrap();
-    (x, y)
+    (entity, transform)
 }
 
 fn initialize_map(world: &mut World) {
@@ -207,4 +247,10 @@ fn load_tiled_map() -> Map {
 
     parse_with_path(BufReader::new(file), path)
         .expect("Assets missing while loading tmx")
+}
+
+pub fn center_of_tile(pos: &Point3<f32>, alternate_z: Option<f32>) -> Vector3<f32> {
+    Vector3::new((pos.x / TILE_WIDTH).floor() * TILE_WIDTH + TILE_WIDTH / 2.,
+                 (pos.y / TILE_HEIGHT).floor() * TILE_HEIGHT + TILE_HEIGHT / 2.,
+                 alternate_z.or_else(|| Some(pos.z)).unwrap())
 }

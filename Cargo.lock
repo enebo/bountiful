@@ -609,6 +609,7 @@ version = "0.1.0"
 dependencies = [
  "amethyst",
  "amethyst-imgui",
+ "amethyst_core",
  "amethyst_window",
  "criterion",
  "nalgebra",

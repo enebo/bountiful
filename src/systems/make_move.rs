@@ -1,9 +1,8 @@
 use amethyst::core::Transform;
 use amethyst::derive::SystemDesc;
-use amethyst::ecs::{Entity, Entities, Join, ReadStorage, System, SystemData, WriteStorage};
-use amethyst::renderer::Camera;
+use amethyst::ecs::{Entity, Entities, Join, System, SystemData, WriteStorage};
 
-use crate::components::{MakeMove, Player};
+use crate::components::MakeMove;
 
 #[derive(SystemDesc)]
 pub struct MoveSystem;
@@ -12,28 +11,20 @@ impl<'s> System<'s> for MoveSystem {
     type SystemData = (
         WriteStorage<'s, MakeMove>,
         WriteStorage<'s, Transform>,
-        WriteStorage<'s, Camera>,
-        ReadStorage<'s, Player>,
         Entities<'s>,
     );
 
-    fn run(&mut self, (mut moves, mut transforms, cameras, players, entities): Self::SystemData) {
-        let mut to_remove: Vec<(Entity, f32, f32)> = vec![];
+    fn run(&mut self, (mut moves, mut transforms, entities): Self::SystemData) {
+        let mut to_remove: Vec<Entity> = vec![];
 
         for (entity, make_move, transform) in (&entities, &mut moves, &mut transforms).join() {
             transform.prepend_translation_x(make_move.dx);
             transform.prepend_translation_y(make_move.dy);
 
-            to_remove.push((entity, transform.translation().x, transform.translation().y));
+            to_remove.push(entity);
         }
 
-        for (entity, x, y) in to_remove {
-            if players.get(entity).is_some() {
-                for (_camera, transform) in (&cameras, &mut transforms).join() {
-                    transform.set_translation_x(x);
-                    transform.set_translation_y(y);
-                }
-            }
+        for entity in to_remove {
             moves.remove(entity);
         }
     }

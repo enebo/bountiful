@@ -8,8 +8,8 @@ use amethyst_window::ScreenDimensions;
 use winit::MouseButton;
 
 use crate::components::{Player, Pointer, ProposedMove, ProposedMoveType};
-use crate::bountiful::{TILE_WIDTH, TILE_HEIGHT, POINTER_Z};
-use nalgebra::{Point3, Vector2, Vector3};
+use crate::bountiful::{POINTER_Z, center_of_tile};
+use nalgebra::{Point3, Vector2};
 
 #[derive(SystemDesc)]
 pub struct InputSystem;
@@ -85,19 +85,11 @@ impl<'s> System<'s> for InputSystem {
             }
         }
 
-        if let Some(mut pos) = pointer {
+        if let Some(pos) = pointer {
             for (_pointer, render, transform) in (&pointers, &mut renders, &mut transforms).join() {
                 render.sprite_number = if mouse_pressed { 1 } else { 0 };
-                pos.z = POINTER_Z;
-                transform.set_translation(center_of_tile(&pos));
+                transform.set_translation(center_of_tile(&pos, Some(POINTER_Z)));
             }
         }
     }
-
-}
-
-fn center_of_tile(pos: &Point3<f32>) -> Vector3<f32> {
-    Vector3::new((pos.x / TILE_WIDTH).floor() * TILE_WIDTH + TILE_WIDTH / 2.,
-                 (pos.y / TILE_HEIGHT).floor() * TILE_HEIGHT + TILE_HEIGHT / 2.,
-                 pos.z)
 }
