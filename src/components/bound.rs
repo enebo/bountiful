@@ -30,8 +30,9 @@ impl Bound {
     }
 
     // Positions represent center of bound.
-    pub fn intersects(&self, pos: [f32; 3], opos: [f32; 3], ob: &Bound) -> bool {
-        let (x, y, ox, oy) = (pos[0] - self.x / 2., pos[1] - self.y / 2., opos[0] - ob.x / 2., opos[1] - ob.y / 2. );
+    pub fn intersects(&self, (px, py): (f32, f32), (opx, opy): (f32, f32), ob: &Bound) -> bool {
+        let (x, y) = (px - self.x / 2., py - self.y / 2.);
+        let (ox, oy) = (opx - ob.x / 2., opy - ob.y / 2.);
         let ((llx, lly), (urx, ury)) = ((x, y),(x + self.x, y + self.y));
         let ((ollx, olly), (ourx, oury)) = ((ox, oy),(ox + ob.x, oy + ob.y));
 
@@ -55,14 +56,14 @@ mod tests {
     fn test_intersects() {
         let bound = Bound::new(2., 2.);
         let other_bound = Bound::new(2., 2.);
-        let pos = [1., 1., 0.];
-        let other_pos = [2., 1., 0.];
-        assert!(bound.intersects(pos, other_pos, &other_bound));
-        assert!(bound.intersects(other_pos, pos, &other_bound));
-        let other_pos = [1., 2., 0.];
-        assert!(bound.intersects(pos, other_pos, &other_bound));
-        assert!(bound.intersects(other_pos, pos, &other_bound));
-        let other_pos = [3.1, 1., 0.];
-        assert!(!bound.intersects(pos, other_pos, &other_bound));
+        let (px, py) = (1., 1.);
+        let (opx, opy) = (2., 1.);
+        assert!(bound.intersects((px, py), (opx, opy), &other_bound));
+        assert!(bound.intersects((opx, opy), (px, py), &other_bound));
+        let (opx, opy) = (1., 2.);
+        assert!(bound.intersects((px, py), (opx, opy), &other_bound));
+        assert!(bound.intersects((opx, opy), (px, py), &other_bound));
+        let (opx, opy) = (3.1, 1.);
+        assert!(!bound.intersects((px, py), (opx, opy), &other_bound));
      }
 }
