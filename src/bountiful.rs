@@ -15,7 +15,7 @@ use std::path::Path;
 use std::io::BufReader;
 use tiled::{parse_with_path, Tileset, Map};
 use crate::resources::hotbar::Hotbar;
-use crate::resources::Hotbars;
+use crate::resources::{Hotbars, Items};
 
 pub struct Bountiful;
 
@@ -30,8 +30,12 @@ impl SimpleState for Bountiful {
         let camera= initialise_camera(world, player);
         initialize_pointer(world);
         let hotbars = Hotbars { selected: None, contents: initialize_hotbar(world, &camera, player, &player_transform) };
+        let items = load_items(world);
 
+        world.insert(items);
         world.insert(hotbars);
+
+        equip_player(world, player);
     }
 }
 
@@ -41,9 +45,42 @@ pub const WIDTH: f32 = 1000.;
 pub const HEIGHT: f32 = 1000.;
 
 pub const CAMERA_Z: f32 = 1.0;
-pub const POINTER_Z: f32 = 0.1;
+pub const HOTBAR_CONTENTS_Z: f32 = 0.15;
+pub const HOTBAR_Z: f32 = 0.1;
+pub const POINTER_Z: f32 = 0.05;
 pub const PLAYERS_Z: f32 = 0.0;
 pub const MAP_LAYERS_Z: [f32; 3] = [-0.3, -0.2, -0.1]; // base, solid, iso
+
+// FIXME: Lots wrong here but this is just temporary to work in item interaction.
+fn equip_player(world: &mut World, player: Entity) {
+    let (textures, texture_id) = {
+        let items = world.read_resource::<Items>();
+        (items.textures.clone(), items.items.iter().find(|e| e.name == "Pick Axe").unwrap().texture_id)
+    };
+
+    let (x, y) = {
+        let hotbars = world.read_resource::<Hotbars>();
+        let hotbar = hotbars.contents.get(0).unwrap().hotbar_gui;
+        let reader = world.read_component::<Transform>();
+        let translation = reader.get(hotbar).unwrap().translation();
+        (translation.x, translation.y)
+    };
+
+    let mut transform= Transform::default();
+    transform.set_translation_xyz(x, y,HOTBAR_CONTENTS_Z);
+
+    let sprite_render = SpriteRender {
+        sprite_sheet: textures,
+        sprite_number: texture_id, // stationary
+    };
+
+    let _ax = world
+        .create_entity()
+        .with(sprite_render)
+        .with(Parent { entity: player })
+        .with(transform)
+        .build();
+}
 
 fn initialise_camera(world: &mut World, player: Entity) -> Camera {
     let mut transform= Transform::default();
@@ -102,7 +139,7 @@ fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_
         };
 
         let mut transform = Transform::default();
-        transform.set_translation_xyz(pos.x + slot as f32 * TILE_WIDTH, pos.y, PLAYERS_Z);
+        transform.set_translation_xyz(pos.x + slot as f32 * TILE_WIDTH, pos.y, HOTBAR_Z);
 
         let entity = world
             .create_entity()
@@ -143,6 +180,15 @@ fn initialize_player(world: &mut World) -> (Entity, Transform) {
 
     world.write_component().insert(entity, Player{ entity}).unwrap();
     (entity, transform)
+}
+
+fn load_items(world: &mut World) -> Items {
+    let sprite_sheet = load_sprite_sheet(world, "texture/items");
+    let mut items = Items::new(sprite_sheet);
+
+    items.add("Pick Axe".to_string(), 0);
+
+    items
 }
 
 fn initialize_map(world: &mut World) {

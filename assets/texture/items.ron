@@ -5,7 +5,7 @@
 
 List((
     texture_width: 384,
-    texture_height: 64,
+    texture_height: 384,
     sprites: [
         (
             x: 0,
