@@ -16,6 +16,7 @@ use crate::resources::Hotbars;
 pub struct InputSystem;
 
 const VELOCITY: f32 = 200.0;
+const UNARM: usize = 8;
 
 // Input can generate actions and moves.  Moves are proposed and collision system will decide
 // whether they can occur.
@@ -78,15 +79,20 @@ impl<'s> System<'s> for InputSystem {
                     Some(6)
                 } else if let Some(true) = input.action_is_down("hotbar_8") {
                     Some(7)
+                } else if let Some(true) = input.action_is_down("unarm") {
+                    Some(UNARM) // A little weird but add bogus once which means unarm.
                 } else {
                     None
                 };
 
                 if let Some(index) = selected {
+                    let selected = hotbars.selected;
+                    let unarm = index == UNARM && selected.is_some();
+                    let index = if unarm { selected.unwrap() } else { index };
                     let gui = hotbars.contents.get(index).unwrap().hotbar_gui;
                     renders.get_mut(gui).unwrap().sprite_number = 1;
                     if let Some(selected_index) = hotbars.selected {
-                        if selected_index != index {
+                        if selected_index != index || unarm {
                             let gui = hotbars.contents.get(selected_index).unwrap().hotbar_gui;
                             renders.get_mut(gui).unwrap().sprite_number = 0;
                         }

@@ -14,5 +14,6 @@
          "hotbar_6": [[Key(Key6)]],
          "hotbar_7": [[Key(Key7)]],
          "hotbar_8": [[Key(Key8)]],
+         "unarm": [[Key(X)]],
      },
  )
