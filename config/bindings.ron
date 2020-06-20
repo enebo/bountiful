@@ -6,5 +6,13 @@
          "e": [[Key(D)]],
          "s": [[Key(S)]],
          "shift": [[Key(LShift)]],
+         "hotbar_1": [[Key(Key1)]],
+         "hotbar_2": [[Key(Key2)]],
+         "hotbar_3": [[Key(Key3)]],
+         "hotbar_4": [[Key(Key4)]],
+         "hotbar_5": [[Key(Key5)]],
+         "hotbar_6": [[Key(Key6)]],
+         "hotbar_7": [[Key(Key7)]],
+         "hotbar_8": [[Key(Key8)]],
      },
  )

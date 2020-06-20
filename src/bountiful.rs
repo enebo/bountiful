@@ -9,11 +9,13 @@ use amethyst_core::transform::components::Parent;
 use amethyst_window::ScreenDimensions;
 use nalgebra::{Point3, Vector2, Vector3};
 
-use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation, Hotbar};
+use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation, HotbarGui};
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
 use tiled::{parse_with_path, Tileset, Map};
+use crate::resources::hotbar::Hotbar;
+use crate::resources::Hotbars;
 
 pub struct Bountiful;
 
@@ -27,7 +29,9 @@ impl SimpleState for Bountiful {
         let (player, player_transform) = initialize_player(world);
         let camera= initialise_camera(world, player);
         initialize_pointer(world);
-        initialize_hotbar(world, &camera, player, &player_transform);
+        let hotbars = Hotbars { selected: None, contents: initialize_hotbar(world, &camera, player, &player_transform) };
+
+        world.insert(hotbars);
     }
 }
 
@@ -77,7 +81,7 @@ fn initialize_pointer(world: &mut World) {
     world.write_component().insert(entity, Pointer {}).unwrap();
 }
 
-fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_transform: &Transform) {
+fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_transform: &Transform) -> Vec<Hotbar> {
     let dims = {
         let sd = world.read_resource::<ScreenDimensions>();
         Vector2::new(sd.width(), sd.height())
@@ -88,16 +92,17 @@ fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_
     let width = dims.x / 2. - hotbar_count as f32 / 2. * TILE_WIDTH;
     let point = Point3::new(width, dims.y - TILE_HEIGHT / 2., 0.);
     let pos = camera.projection().screen_to_world_point(point, dims, player_transform);
+    let mut hotbars= Vec::<Hotbar>::with_capacity(hotbar_count);
 
-    world.register::<Hotbar>(); // FIXME: Remove on once system uses it.
-    for i in 0..hotbar_count {
+    world.register::<HotbarGui>();
+    for slot in 0..hotbar_count {
         let sprite_render = SpriteRender {
             sprite_sheet: sprite_sheet_handle.clone(),
             sprite_number: 0, // stationary
         };
 
         let mut transform = Transform::default();
-        transform.set_translation_xyz(pos.x + i as f32 * TILE_WIDTH, pos.y, PLAYERS_Z);
+        transform.set_translation_xyz(pos.x + slot as f32 * TILE_WIDTH, pos.y, PLAYERS_Z);
 
         let entity = world
             .create_entity()
@@ -106,9 +111,12 @@ fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_
             .with(transform)
             .build();
 
-        world.write_component().insert(entity, Hotbar { entity: None }).unwrap();
+        hotbars.push(Hotbar { hotbar_gui: entity, contents: None });
+
+        world.write_component().insert(entity, HotbarGui { slot }).unwrap();
     }
 
+    hotbars
 }
 
 // FIXME: Placement/Transform should be set how once map is defined?  This will also happen when

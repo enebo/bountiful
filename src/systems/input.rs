@@ -1,6 +1,6 @@
 use amethyst::core::Transform;
 use amethyst::derive::SystemDesc;
-use amethyst::ecs::{Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteStorage};
+use amethyst::ecs::{Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteExpect, WriteStorage};
 use amethyst::core::timing::Time;
 use amethyst::input::{InputHandler, StringBindings};
 use amethyst::renderer::{Camera, SpriteRender};
@@ -10,6 +10,7 @@ use winit::MouseButton;
 use crate::components::{Player, Pointer, ProposedMove, ProposedMoveType};
 use crate::bountiful::{POINTER_Z, center_of_tile};
 use nalgebra::{Point3, Vector2};
+use crate::resources::Hotbars;
 
 #[derive(SystemDesc)]
 pub struct InputSystem;
@@ -29,10 +30,12 @@ impl<'s> System<'s> for InputSystem {
         ReadStorage<'s, Camera>,
         Read<'s, Time>,
         Read<'s, InputHandler<StringBindings>>,
+        WriteExpect<'s, Hotbars>,
     );
 
     // FIXME: pointer should probably just be a resource?  There is only one
-    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, mut renders, cameras, time, input): Self::SystemData) {
+    fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, mut renders,
+        cameras, time, input, mut hotbars): Self::SystemData) {
         let mut mouse_pressed = false;
         let mut pointer: Option<Point3<f32>> = None;
 
@@ -57,6 +60,38 @@ impl<'s> System<'s> for InputSystem {
                 }
                 if let Some(true) = input.action_is_down("w") {
                     dx += -velocity * time.delta_seconds();
+                }
+
+                let selected = if let Some(true) = input.action_is_down("hotbar_1") {
+                    Some(0)
+                } else if let Some(true) = input.action_is_down("hotbar_2") {
+                    Some(1)
+                } else if let Some(true) = input.action_is_down("hotbar_3") {
+                    Some(2)
+                } else if let Some(true) = input.action_is_down("hotbar_4") {
+                    Some(3)
+                } else if let Some(true) = input.action_is_down("hotbar_5") {
+                    Some(4)
+                } else if let Some(true) = input.action_is_down("hotbar_6") {
+                    Some(5)
+                } else if let Some(true) = input.action_is_down("hotbar_7") {
+                    Some(6)
+                } else if let Some(true) = input.action_is_down("hotbar_8") {
+                    Some(7)
+                } else {
+                    None
+                };
+
+                if let Some(index) = selected {
+                    let gui = hotbars.contents.get(index).unwrap().hotbar_gui;
+                    renders.get_mut(gui).unwrap().sprite_number = 1;
+                    if let Some(selected_index) = hotbars.selected {
+                        if selected_index != index {
+                            let gui = hotbars.contents.get(selected_index).unwrap().hotbar_gui;
+                            renders.get_mut(gui).unwrap().sprite_number = 0;
+                        }
+                    }
+                    hotbars.selected = Some(index);
                 }
 
                 let move_type = if dx != 0.0 || dy != 0.0 {
