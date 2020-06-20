@@ -10,7 +10,7 @@ use winit::MouseButton;
 use crate::components::{Player, Pointer, ProposedMove, ProposedMoveType};
 use crate::bountiful::{POINTER_Z, center_of_tile};
 use nalgebra::{Point3, Vector2};
-use crate::resources::Hotbars;
+use crate::resources::Hotbar;
 
 #[derive(SystemDesc)]
 pub struct InputSystem;
@@ -31,7 +31,7 @@ impl<'s> System<'s> for InputSystem {
         ReadStorage<'s, Camera>,
         Read<'s, Time>,
         Read<'s, InputHandler<StringBindings>>,
-        WriteExpect<'s, Hotbars>,
+        WriteExpect<'s, Hotbar>,
     );
 
     // FIXME: pointer should probably just be a resource?  There is only one
@@ -85,6 +85,7 @@ impl<'s> System<'s> for InputSystem {
                     None
                 };
 
+                // FIXME: This is a tangle of state...
                 if let Some(index) = selected {
                     let selected = hotbars.selected;
                     let unarm = index == UNARM && selected.is_some();

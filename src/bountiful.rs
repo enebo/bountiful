@@ -14,8 +14,8 @@ use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
 use tiled::{parse_with_path, Tileset, Map};
-use crate::resources::hotbar::Hotbar;
-use crate::resources::{Hotbars, Items};
+use crate::resources::hotbar::HotbarSlot;
+use crate::resources::{Hotbar, Items};
 
 pub struct Bountiful;
 
@@ -29,7 +29,7 @@ impl SimpleState for Bountiful {
         let (player, player_transform) = initialize_player(world);
         let camera= initialise_camera(world, player);
         initialize_pointer(world);
-        let hotbars = Hotbars { selected: None, contents: initialize_hotbar(world, &camera, player, &player_transform) };
+        let hotbars = Hotbar { selected: None, contents: initialize_hotbar(world, &camera, player, &player_transform) };
         let items = load_items(world);
 
         world.insert(items);
@@ -59,7 +59,7 @@ fn equip_player(world: &mut World, player: Entity) {
     };
 
     let (x, y) = {
-        let hotbars = world.read_resource::<Hotbars>();
+        let hotbars = world.read_resource::<Hotbar>();
         let hotbar = hotbars.contents.get(0).unwrap().hotbar_gui;
         let reader = world.read_component::<Transform>();
         let translation = reader.get(hotbar).unwrap().translation();
@@ -118,7 +118,7 @@ fn initialize_pointer(world: &mut World) {
     world.write_component().insert(entity, Pointer {}).unwrap();
 }
 
-fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_transform: &Transform) -> Vec<Hotbar> {
+fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_transform: &Transform) -> Vec<HotbarSlot> {
     let dims = {
         let sd = world.read_resource::<ScreenDimensions>();
         Vector2::new(sd.width(), sd.height())
@@ -129,7 +129,7 @@ fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_
     let width = dims.x / 2. - hotbar_count as f32 / 2. * TILE_WIDTH;
     let point = Point3::new(width, dims.y - TILE_HEIGHT / 2., 0.);
     let pos = camera.projection().screen_to_world_point(point, dims, player_transform);
-    let mut hotbars= Vec::<Hotbar>::with_capacity(hotbar_count);
+    let mut hotbars= Vec::<HotbarSlot>::with_capacity(hotbar_count);
 
     world.register::<HotbarGui>();
     for slot in 0..hotbar_count {
@@ -148,7 +148,7 @@ fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_
             .with(transform)
             .build();
 
-        hotbars.push(Hotbar { hotbar_gui: entity, contents: None });
+        hotbars.push(HotbarSlot { hotbar_gui: entity, contents: None });
 
         world.write_component().insert(entity, HotbarGui { slot }).unwrap();
     }

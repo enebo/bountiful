@@ -1,11 +1,11 @@
 use amethyst::ecs::Entity;
 
-pub struct Hotbars {
+pub struct Hotbar {
     pub selected: Option<usize>,
-    pub contents: Vec<Hotbar>,
+    pub contents: Vec<HotbarSlot>,
 }
 
-pub struct Hotbar {
+pub struct HotbarSlot {
     pub hotbar_gui: Entity,
     pub contents: Option<Entity>,
 }
