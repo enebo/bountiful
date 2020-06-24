@@ -50,36 +50,36 @@ impl<'s> System<'s> for InputSystem {
                     _ => VELOCITY,
                 };
 
-                if let Some(true) = input.action_is_down("s") {
+                if input.action_is_down("s").unwrap_or(false) {
                     dy += -velocity * time.delta_seconds();
                 }
-                if let Some(true) = input.action_is_down("n") {
+                if input.action_is_down("n").unwrap_or(false) {
                     dy += velocity * time.delta_seconds();
                 }
-                if let Some(true) = input.action_is_down("e") {
+                if input.action_is_down("e").unwrap_or(false) {
                     dx += velocity * time.delta_seconds();
                 }
-                if let Some(true) = input.action_is_down("w") {
+                if input.action_is_down("w").unwrap_or(false) {
                     dx += -velocity * time.delta_seconds();
                 }
 
-                let selected = if let Some(true) = input.action_is_down("hotbar_1") {
+                let selected = if input.action_is_down("hotbar_1").unwrap_or(false) {
                     Some(0)
-                } else if let Some(true) = input.action_is_down("hotbar_2") {
+                } else if input.action_is_down("hotbar_2").unwrap_or(false) {
                     Some(1)
-                } else if let Some(true) = input.action_is_down("hotbar_3") {
+                } else if input.action_is_down("hotbar_3").unwrap_or(false) {
                     Some(2)
-                } else if let Some(true) = input.action_is_down("hotbar_4") {
+                } else if input.action_is_down("hotbar_4").unwrap_or(false) {
                     Some(3)
-                } else if let Some(true) = input.action_is_down("hotbar_5") {
+                } else if input.action_is_down("hotbar_5").unwrap_or(false) {
                     Some(4)
-                } else if let Some(true) = input.action_is_down("hotbar_6") {
+                } else if input.action_is_down("hotbar_6").unwrap_or(false) {
                     Some(5)
-                } else if let Some(true) = input.action_is_down("hotbar_7") {
+                } else if input.action_is_down("hotbar_7").unwrap_or(false) {
                     Some(6)
-                } else if let Some(true) = input.action_is_down("hotbar_8") {
+                } else if input.action_is_down("hotbar_8").unwrap_or(false) {
                     Some(7)
-                } else if let Some(true) = input.action_is_down("unarm") {
+                } else if input.action_is_down("unarm").unwrap_or(false) {
                     Some(UNARM) // A little weird but add bogus once which means unarm.
                 } else {
                     None
