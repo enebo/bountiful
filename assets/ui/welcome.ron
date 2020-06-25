@@ -1,0 +1,24 @@
+#![enable(implicit_some)]
+Container(
+    transform: (
+        id: "background",
+        anchor: Middle,
+        stretch: XY( x_margin: 0., y_margin: 0., keep_aspect_ratio: false),
+        width: 768.,
+        height: 768.,
+    ),
+
+    children: [
+
+        Image(
+            transform: (
+                id: "background",
+                width: 1048.,
+                height: 1048.,
+                tab_order: 1,
+                anchor: Middle,
+            ),
+            image: Texture(File("texture/logo.png", ("IMAGE", ()))),
+        ),
+    ],
+)

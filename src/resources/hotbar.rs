@@ -1,5 +1,6 @@
 use amethyst::ecs::Entity;
 
+#[derive(Default)]
 pub struct Hotbar {
     pub selected: Option<usize>,
     pub contents: Vec<HotbarSlot>,

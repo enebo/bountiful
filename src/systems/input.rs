@@ -8,7 +8,7 @@ use amethyst_window::ScreenDimensions;
 use winit::MouseButton;
 
 use crate::components::{Player, Pointer, ProposedMove, ProposedMoveType};
-use crate::bountiful::{POINTER_Z, center_of_tile};
+use crate::bountiful::{center_of_tile, POINTER_Z};
 use nalgebra::{Point3, Vector2};
 use crate::resources::Hotbar;
 

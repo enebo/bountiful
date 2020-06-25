@@ -17,6 +17,7 @@ use tiled::{parse_with_path, Tileset, Map};
 use crate::resources::hotbar::HotbarSlot;
 use crate::resources::{Hotbar, Items};
 
+#[derive(Default)]
 pub struct Bountiful;
 
 impl SimpleState for Bountiful {
@@ -29,11 +30,11 @@ impl SimpleState for Bountiful {
         let (player, player_transform) = initialize_player(world);
         let camera= initialise_camera(world, player);
         initialize_pointer(world);
-        let hotbars = Hotbar { selected: None, contents: initialize_hotbar(world, &camera, player, &player_transform) };
+        let hotbar = Hotbar { selected: None, contents: initialize_hotbar(world, &camera, player, &player_transform) };
         let items = load_items(world);
 
         world.insert(items);
-        world.insert(hotbars);
+        world.insert(hotbar);
 
         equip_player(world, player);
     }
