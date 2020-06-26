@@ -27,13 +27,20 @@ impl<'s> System<'s> for CollisionSystem {
         let mut to_remove: Vec<Entity> = vec![];
 
         for (new_move, transform, sprite_render, anim) in (&mut moves, &transforms, &mut renders, &mut sprite_animations).join() {
-            if new_move.move_type == ProposedMoveType::Stop {
-                sprite_render.sprite_number = anim.stop();
-                continue;
-            }
             let entity = new_move.entity;
+
+            to_remove.push(entity); // All moves die here.
+
+            let (dx, dy) = match new_move.move_type {
+                ProposedMoveType::Walk => (new_move.dx, new_move.dy),
+                ProposedMoveType::Run => (new_move.dx * 3., new_move.dy * 3.), // FIXME: run multiple should come from join stats of any mover.
+                ProposedMoveType::Stop => {
+                    sprite_render.sprite_number = anim.stop();
+                    continue;
+                }
+            };
+
             let (x, y) = (transform.translation().x, transform.translation().y);
-            let (dx, dy) = (new_move.dx, new_move.dy);
             let mover_bound = bounds.get(entity).expect("Something moving which has no bound?");
 
             // FIXME: Only do this join if within a game point vs all possible solids.
@@ -55,7 +62,6 @@ impl<'s> System<'s> for CollisionSystem {
                 if should_move {
                     sprite_render.sprite_number = anim.update(time.delta_seconds(), (*dx, *dy));
                     to_move.push( (entity, *dx, *dy));
-                    to_remove.push(entity);
                     break;
                 }
             }

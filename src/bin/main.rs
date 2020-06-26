@@ -49,7 +49,7 @@ fn main() -> amethyst::Result<()> {
                 .with_plugin(RenderFlat2D::default())
         )?
         .with_bundle(SetupBundle)?
-        .with(InputSystem, "player_input", &["imgui_input_system"])
+        .with(InputSystem::default(), "player_input", &["imgui_input_system"])
         .with(CollisionSystem, "collisions", &["player_input"])
         .with(DebugSystem::new(), "debug", &[]);
 
