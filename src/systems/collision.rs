@@ -31,6 +31,8 @@ impl<'s> System<'s> for CollisionSystem {
 
             to_remove.push(entity); // All moves die here.
 
+            // FIXME: If I am running very fast I can teleport through things.  Either make that speed impossible or change collision system.
+            // FIXME: If I am running pretty fast I might end up not being able to move at all even though there is plenty of open space between me and an obstacle.
             let (dx, dy) = match new_move.move_type {
                 ProposedMoveType::Walk => (new_move.dx, new_move.dy),
                 ProposedMoveType::Run => (new_move.dx * 3., new_move.dy * 3.), // FIXME: run multiple should come from join stats of any mover.

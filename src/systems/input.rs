@@ -1,25 +1,38 @@
 use amethyst::core::Transform;
 use amethyst::derive::SystemDesc;
-use amethyst::ecs::{Entity, Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteExpect, WriteStorage};
+use amethyst::ecs::{Entity, Entities, Join, Read, ReadExpect, ReadStorage, System, SystemData, WriteExpect, WriteStorage};
 use amethyst::ecs::shred::DefaultProvider;
 use amethyst::core::timing::Time;
 use amethyst::input::{InputHandler, StringBindings};
 use amethyst::renderer::{Camera, SpriteRender};
+use amethyst_core::transform::components::Parent;
 use amethyst_window::ScreenDimensions;
 use winit::MouseButton;
 
-use crate::components::{Player, Pointer, ProposedMove};
-use crate::bountiful::{center_of_tile, POINTER_Z};
+use crate::components::{Player, Pointer, ProposedMove, Loose};
+use crate::bountiful::{center_of_tile, POINTER_Z, TILE_WIDTH, TILE_HEIGHT, HOTBAR_CONTENTS_Z, HOTBAR_SLOTS};
 use nalgebra::{Point3, Vector2};
 use crate::resources::Hotbar;
 
-#[derive(Default, SystemDesc)]
+#[derive(SystemDesc)]
 pub struct InputSystem {
     mouse_down: bool,
+    dragged_item: Option<Entity>,
+    original_dragged_location: Option<(f32, f32)>,
+}
+
+impl Default for InputSystem {
+    fn default() -> Self {
+        Self {
+            mouse_down: false,
+            dragged_item: None,
+            original_dragged_location: None,
+        }
+    }
 }
 
 const VELOCITY: f32 = 200.0;
-const UNARM: usize = 8;
+const UNARM: usize = HOTBAR_SLOTS + 1;
 
 // Input can generate actions and moves.  Moves are proposed and collision system will decide
 // whether they can occur.
@@ -35,15 +48,23 @@ impl<'s> System<'s> for InputSystem {
         Read<'s, Time>,
         Read<'s, InputHandler<StringBindings>>,
         WriteExpect<'s, Hotbar>,
+        ReadStorage<'s, Loose>,
+        Entities<'s>,
+        ReadStorage<'s, Parent>,
     );
 
     // FIXME: pointer should probably just be a resource?  There is only one
     fn run(&mut self, (mut moves, mut transforms, players, pointers, dimensions, mut renders,
-        cameras, time, input, mut hotbars): Self::SystemData) {
+        cameras, time, input, mut hotbars, loose, entities, parents): Self::SystemData) {
         let mut pointer: Option<Point3<f32>> = None;
+        let mut drag_check = false;
+        let mut player_pos: (f32, f32) = (0., 0.);
+        let mut player_entity: Option<Entity> = None;
 
         for (camera, camera_transform) in (&cameras, &transforms).join() {
-            for player in (&players).join() {
+            for (player, player_transform) in (&players, &transforms).join() {
+                player_pos = (player_transform.translation().x, player_transform.translation().y);
+                player_entity = Some(player.entity);
                 let entity = player.entity;
                 let shift = input.action_is_down("shift").unwrap_or(false);
                 let hotbar_selected = Self::process_hotbar_select(&input);
@@ -74,31 +95,83 @@ impl<'s> System<'s> for InputSystem {
             // 2. Select item to interact with (left mouse click with shift)
             // 3. Drag loose item (left mouse held down with drag)
             if let Some((x, y)) = input.mouse_position() {
-                let pos = camera
+                pointer = Some(camera
                     .projection()
                     .screen_to_world_point(Point3::new(x, y, 0.),
                                            Vector2::new(dimensions.width(), dimensions.height()),
-                                           camera_transform);
+                                           camera_transform));
                 let mouse_down = input.mouse_button_is_down(MouseButton::Left);
-                // FIXME: need Loose item from pointer position (which may be on map OR hotbar OR inventory if displayed).
-                // FIXME: On raise will return to original loc if invalid drop loc will drop to map OR hotbar OR inventory.
 
                 if self.mouse_down {
                     if !mouse_down { // mouse button raised
                         self.mouse_down = false;
                     } else {        // possibly dragging?
+                        drag_check = true;
                     }
                 } else {            // mouse button pressed
                     self.mouse_down = mouse_down;
-                    pointer = Some(pos);
                 }
             }
         }
 
+        // FIXME: Add inventory where picked up items get stuffed.
+        // FIXME: on dragging to map it will drop next to or worst case where player is and remove Loose from the item.
+        // FIXME: on shift-click an item on map will be picked up.
+
+        // Handle dragging items around between hotbar, iventory, and dropping on the ground.
+        // All loose items in hotbar and inventory aer children of the Player (via Parent).
+        // This means all their locations are relative to the location of the Player.
         if let Some(pos) = pointer {
-            for (_pointer, render, transform) in (&pointers, &mut renders, &mut transforms).join() {
-                render.sprite_number = if self.mouse_down { 1 } else { 0 };
-                transform.set_translation(center_of_tile(&pos, Some(POINTER_Z)));
+            if drag_check {
+                if let Some(entity) = &self.dragged_item {
+                    let transform = transforms.get_mut(*entity).unwrap();
+                    transform.set_translation_xyz(pos.x - player_pos.0, pos.y - player_pos.1, HOTBAR_CONTENTS_Z);
+                } else {
+                    // Items placed in hotbar or invenctories are in transforms relative to parent and not map.
+                    for (_loose, parent, entity, transform) in (&loose, &parents, &entities, &transforms).join() {
+                        // Safe-guard against use of Parent for more than just the player.
+                        if player_entity.unwrap() != parent.entity {
+                            continue;
+                        }
+
+                        let (i, j) = (transform.translation().x, transform.translation().y);
+                        let (ai, aj) = (player_pos.0 + i, player_pos.1 + j);
+                        //println!("drag check items loose: {},{}. item: {},{}. player: {},{}. adj: {},{}.", pos.x, pos.y, i, j, player_pos.0, player_pos.1, ai, aj);
+                        if (pos.x - ai).abs() <= TILE_WIDTH && (pos.y - aj).abs() <= TILE_HEIGHT {
+                            self.dragged_item = Some(entity);
+                            self.original_dragged_location = Some((i, j));
+                            break;
+                        }
+                    }
+                }
+            } else { // highlight tile
+                // Drop item somewhere or return it to where it was.
+                if let Some(item) = self.dragged_item {
+                    let item_transform = transforms.get(item).unwrap();
+                    let item_translation = item_transform.translation();
+                    let mut found_loc: Option<(f32, f32)> = None;
+                    for hotbar in &hotbars.contents {
+                        let slot_translation = transforms.get(hotbar.hotbar_gui).unwrap().translation();
+
+                        if (item_translation.x - slot_translation.x).abs() <= TILE_WIDTH / 2. &&
+                            (item_translation.y - slot_translation.y).abs() <= TILE_HEIGHT / 2. {
+                            found_loc = Some((slot_translation.x, slot_translation.y));
+                            break;
+                        }
+                    }
+
+                    // return to where it came from
+                    let loc = found_loc.or_else(|| Some(self.original_dragged_location.unwrap())).unwrap();
+                    let item_transform = transforms.get_mut(item).unwrap();
+                    item_transform.set_translation_xyz(loc.0, loc.1, HOTBAR_CONTENTS_Z);
+
+                }
+                self.dragged_item = None;
+
+                for (_pointer, render, transform) in (&pointers, &mut renders, &mut transforms).join() {
+                    render.sprite_number = if self.mouse_down { 1 } else { 0 };
+                    transform.set_translation(center_of_tile(&pos, Some(POINTER_Z)));
+                }
             }
         }
     }
@@ -149,6 +222,8 @@ impl InputSystem {
             Some(6)
         } else if input.action_is_down("hotbar_8").unwrap_or(false) {
             Some(7)
+        } else if input.action_is_down("hotbar_9").unwrap_or(false) {
+            Some(8)
         } else if input.action_is_down("unarm").unwrap_or(false) {
             Some(UNARM) // A little weird but add bogus once which means unarm.
         } else {

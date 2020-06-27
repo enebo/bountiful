@@ -9,7 +9,7 @@ use amethyst_core::transform::components::Parent;
 use amethyst_window::ScreenDimensions;
 use nalgebra::{Point3, Vector2, Vector3};
 
-use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation, HotbarGui};
+use crate::components::{Player, Pointer, Position, Solid, Bound, SpriteAnimation, HotbarGui, Loose};
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
@@ -44,6 +44,7 @@ pub const TILE_WIDTH: f32 = 64.;
 pub const TILE_HEIGHT: f32 = 64.;
 pub const WIDTH: f32 = 1000.;
 pub const HEIGHT: f32 = 1000.;
+pub const HOTBAR_SLOTS: usize = 9;
 
 pub const CAMERA_Z: f32 = 1.0;
 pub const HOTBAR_CONTENTS_Z: f32 = 0.15;
@@ -59,25 +60,20 @@ fn equip_player(world: &mut World, player: Entity) {
         (items.textures.clone(), items.items.iter().find(|e| e.name == "Pick Axe").unwrap().texture_id)
     };
 
-    let (x, y) = {
-        let hotbars = world.read_resource::<Hotbar>();
-        let hotbar = hotbars.contents.get(0).unwrap().hotbar_gui;
-        let reader = world.read_component::<Transform>();
-        let translation = reader.get(hotbar).unwrap().translation();
-        (translation.x, translation.y)
-    };
-
+    let slot_translation = world.read_resource::<Hotbar>().translation_of(world, 0).unwrap();
     let mut transform= Transform::default();
-    transform.set_translation_xyz(x, y,HOTBAR_CONTENTS_Z);
+    transform.set_translation_xyz(slot_translation.x, slot_translation.y,HOTBAR_CONTENTS_Z);
 
     let sprite_render = SpriteRender {
         sprite_sheet: textures,
         sprite_number: texture_id, // stationary
     };
 
+    //println!("AX AT: {}, {}", x, y);
     let _ax = world
         .create_entity()
         .with(sprite_render)
+        .with(Loose {})
         .with(Parent { entity: player })
         .with(transform)
         .build();
@@ -126,14 +122,13 @@ fn initialize_hotbar(world: &mut World, camera: &Camera, player: Entity, player_
     };
 
     let sprite_sheet_handle = load_sprite_sheet(world, "texture/hotbar");
-    let hotbar_count = 8;
-    let width = dims.x / 2. - hotbar_count as f32 / 2. * TILE_WIDTH;
+    let width = dims.x / 2. - HOTBAR_SLOTS as f32 / 2. * TILE_WIDTH;
     let point = Point3::new(width, dims.y - TILE_HEIGHT / 2., 0.);
     let pos = camera.projection().screen_to_world_point(point, dims, player_transform);
-    let mut hotbars= Vec::<HotbarSlot>::with_capacity(hotbar_count);
+    let mut hotbars= Vec::<HotbarSlot>::with_capacity(HOTBAR_SLOTS);
 
     world.register::<HotbarGui>();
-    for slot in 0..hotbar_count {
+    for slot in 0..HOTBAR_SLOTS {
         let sprite_render = SpriteRender {
             sprite_sheet: sprite_sheet_handle.clone(),
             sprite_number: 0, // stationary

@@ -1,5 +1,6 @@
 pub mod bound;
 pub mod hotbar_gui;
+pub mod loose;
 pub mod position;
 pub mod proposed_move;
 pub mod player;
@@ -9,6 +10,7 @@ pub mod sprite_animation;
 
 pub use self::bound::Bound;
 pub use self::hotbar_gui::HotbarGui;
+pub use self::loose::Loose;
 pub use self::player::Player;
 pub use self::pointer::Pointer;
 pub use self::position::Position;
